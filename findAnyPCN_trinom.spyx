@@ -10,8 +10,8 @@ import os
 import ast
 
 def findAnyPCN_polynom(p,r,n):
-    if r == 1:
-        return findAnyPCN_polynom_prime(p,n)
+    #if r == 1:
+    return findAnyPCN_polynom_prime(p,r*n)
 
     q = p**r
     F = GF(q,'a')
