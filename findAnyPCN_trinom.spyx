@@ -1,0 +1,580 @@
+from sage.all import *
+import re
+import time
+from multiprocessing import Pool, Value
+import multiprocessing
+import itertools
+import datetime
+import time
+import os
+import ast
+
+def findAnyPCN_polynom(p,r,n):
+    if r == 1:
+        return findAnyPCN_polynom_prime(p,n)
+
+    q = p**r
+    F = GF(q,'a')
+
+    E = F.extension(n,'a')
+    P = E.prime_subfield()
+
+    Px = PolynomialRing(P,'x')
+    Fx = PolynomialRing(F,'x')
+    Ex = PolynomialRing(E,'x')
+    h = Hom(F,E)[0]
+    primOrder = E.order()-1
+   
+    primitives = []
+    
+    #setup factors of x^n-1
+    divs = get_proper_subfield_divisors(p,r,n)
+    facsAll = dict();
+    prodsAll = dict();
+    fieldsAll = dict();
+    for d in divs:
+        G = F.extension(Integer(d), 'c');
+        Gx = PolynomialRing(G,'x');
+        fieldsAll[d] = G;
+        facsAll[d] = list((Gx.gen()**(n/d)-1).factor());
+        prodsAll[d] = dict();
+        for idx,(f,mult) in enumerate(facsAll[d]):
+            prodsAll[d][idx] = (Gx.gen()**(n/d)-1).quo_rem(f)[0]
+
+    # list elements of F
+    Flist = [F.zero()]
+    for i in xrange(1,r+1):
+        for idcs in itertools.combinations(xrange(0,r),i):
+            for koeffs in itertools.product(xrange(1,p),repeat=i):
+                Flist += [F(list(sum([e * Px.gen()**idcs[j] for \
+                        j,e in enumerate(reversed(koeffs))])))]
+
+    if not is_even(n):
+        FprimList = [F.zero()]
+        for i in xrange(1,r+1):
+            for idcs in itertools.combinations(xrange(0,r),i):
+                for koeffs in itertools.product(xrange(p-1,0,-1),repeat=i):
+                    FprimList += [F(list(sum([e * Px.gen()**idcs[j] for \
+                            j,e in enumerate(reversed(koeffs))])))]
+
+    firstRun = True
+    # first test trinoms!
+    for coeffT in xrange(1,q):
+        coeffTF = Flist[coeffT]
+        if firstRun:
+            for coeffN in xrange(p,q):
+                if is_even(n):
+                    coeffNF = Flist[coeffN]
+                else:
+                    coeffNF = FprimList[coeffN]
+                if coeffNF.multiplicative_order() != F.order()-1: continue
+                if not is_even(n): coeffNF *= (-1)
+                primitives += [coeffNF]
+                f = Fx.gen()**n + coeffTF*Fx.gen()**(n-1) + coeffNF
+                #print f
+                if not f.is_irreducible(): continue
+                for fac,mul in Ex(f.map_coefficients(h)).factor():
+                    if fac.degree() == 1:
+                        x = -fac[0]
+                        if x.multiplicative_order() == primOrder \
+                                and isCompletelyNormal(x,E,q,divs,\
+                                fieldsAll,facsAll,prodsAll):
+                            #print "x = ",x,"\tcn: ",isCompletelyNormal(x,F),\
+                                #"prim: ", (x.multiplicative_order() == E.order()-1)
+                            return x,f
+                        else: break
+                    else: break
+            firstRun = False
+        else:
+            for coeffNF in primitives:
+                f = Fx.gen()**n + coeffTF*Fx.gen()**(n-1) + coeffNF
+                #print "not first:",f
+                if not f.is_irreducible(): continue
+                for fac,mul in Ex(f.map_coefficients(h)).factor():
+                    if fac.degree() == 1:
+                        x = -fac[0]
+                        if x.multiplicative_order() == primOrder \
+                                and isCompletelyNormal(x,E,q,divs,\
+                                fieldsAll,facsAll,prodsAll):
+                            #print "x = ",x,"\tcn: ",isCompletelyNormal(x,F),\
+                                #"prim: ", (x.multiplicative_order() == E.order()-1)
+                            return x,f
+                        else: break
+                    else: break
+    # test rest
+    for length in xrange(1,n-1):
+        for idcs in itertools.combinations(xrange(1,n-1),length):
+            for xs in itertools.product(xrange(1,q),repeat=length+1):
+                for x in primitives:
+                    f = Fx.gen()**n + Flist[xs[0]]*Fx.gen()**(n-1) + x
+                    for j,j2 in enumerate(idcs):
+                        f += Flist[xs[length-j]] * Fx.gen() ** j2
+                    #print f
+                    if not f.is_irreducible(): continue
+                    for fac,mul in Ex(f.map_coefficients(h)).factor():
+                        if fac.degree() == 1:
+                            y = -fac[0]
+                            if y.multiplicative_order() == primOrder \
+                                    and isCompletelyNormal(y,E,q,divs,\
+                                    fieldsAll,facsAll,prodsAll):
+                                #print "x = ",y,"\tcn: ",isCompletelyNormal(y,F),\
+                                    #"prim: ", (y.multiplicative_order() == E.order()-1)
+                                return y,f
+                            else: break
+                        else: break
+
+# special function for testing extensions of PrimeFields
+def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
+    p = Integer(p)
+    n = Integer(n)
+    F = GF(p)
+    
+    Fx = PolynomialRing(F,'x')
+    
+    orderE = p**n
+    primOrder = orderE-1
+
+    primitives = []
+
+    #setup factors of x^n-1
+    divs = get_proper_subfield_divisors(p,1,n)
+    facsAll = dict();
+    prodsAll = dict();
+    fieldsAll = dict();
+    for d in divs:
+        G = F.extension(Integer(d), 'c');
+        Gx = PolynomialRing(G,'x');
+        fieldsAll[d] = G;
+        facsAll[d] = list((Gx.gen()**(n/d)-1).factor());
+        prodsAll[d] = dict();
+        for idx,(f,mult) in enumerate(facsAll[d]):
+            prodsAll[d][idx] = (Gx.gen()**(n/d)-1).quo_rem(f)[0]
+
+    firstRun = True
+    # first test trinoms!
+    for coeffT in xrange(1,p):
+        if firstRun:
+            if is_even(n):
+                prange = xrange(1,p)
+            else:
+                prange = xrange(p-1,0,-1)
+            for coeffN in prange:
+                if F(coeffN).multiplicative_order() != p-1: continue
+                if is_even(n):
+                    primitives += [coeffN]
+                else:
+                    coeffN *= (-1)
+                    primitives = [coeffN] + primitives
+                f = Fx.gen()**n + coeffT*Fx.gen()**(n-1) + coeffN
+                #print f
+                if not f.is_irreducible(): continue
+                
+                E = GF(orderE, name='a', modulus=f)
+
+                if E.gen().multiplicative_order() == primOrder \
+                        and isCompletelyNormal(E.gen(),E,p,\
+                            divs,fieldsAll,facsAll,prodsAll):
+                    return E.gen(),f
+            firstRun = False
+        else:
+            #print primitives
+            for coeffN in primitives:
+                f = Fx.gen()**n + coeffT*Fx.gen()**(n-1) + coeffN
+                #print "not first:",f
+                #print f,"\t\t",numsf(f)
+                if not f.is_irreducible(): continue
+                E = GF(orderE, name='a', modulus=f)
+
+                if E.gen().multiplicative_order() == primOrder \
+                        and isCompletelyNormal(E.gen(),E,p,\
+                            divs,fieldsAll,facsAll,prodsAll):
+                    return E.gen(),f
+    # test rest
+    for length in xrange(1,n-1):
+        for idcs in itertools.combinations(xrange(1,n-1),length):
+            #print idcs
+            for xs in itertools.product(xrange(1,p),repeat=length+1):
+                #print xs
+                for x in primitives:
+                    f = Fx.gen()**n + xs[0]*Fx.gen()**(n-1) + x
+                    for j,j2 in enumerate(idcs):
+                        f += xs[length-j] * Fx.gen() ** j2
+                    #print f
+                    if not f.is_irreducible(): continue
+                    E = GF(orderE, name='a', modulus=f)
+
+                    if isPrimitive(E.gen(),primOrder,barFactors) \
+                            and isCompletelyNormal(E.gen(),E,p,\
+                                divs,fieldsAll,facsAll,prodsAll):
+                        return E.gen(),f
+
+
+def numsf(f):
+    #i_f = [ i for (i,a) in enumerate(list(f)) if a != 0 ]
+    #a_f = [ a for ]
+    #return str(i_f)
+    p = f.base_ring().characteristic()
+    return f.hamming_weight(),sum([ p**i*Integer(a) for (i,a) in enumerate(list(f)) ])
+
+
+def leq(f,g):
+    i_f = [ i for (i,a) in enumerate(list(f)) if a != 0 ]
+    i_g = [ i for (i,a) in enumerate(list(g)) if a != 0 ]
+    if len(i_f) < len(i_g): return True
+    elif len(i_f) > len(i_g): return False
+
+    # lex order on i_f
+    if i_f < i_g: return True
+    elif i_f > i_g: return False
+
+
+    # i_f == i_g
+    a_f = [ a for (i,a) in enumerate(reversed(list(f))) if a != 0 ]
+    a_g = [ a for (i,a) in enumerate(reversed(list(g))) if a != 0 ]
+    if len(a_f) < len(a_g): return True
+    elif len(a_f) > len(a_g): return False
+
+    # lex order on a_f
+    if a_f < a_g: return True
+    elif a_f > a_g: return False
+    return "ERROR"
+
+
+
+
+def findAnyPCN_polynom_wrapper(n, border=lambda n:n**4, \
+        fileoutput=False, filepath="pcns_trinom_", \
+        startPrime=1, stopPrime=0, onlyR=None, \
+        cpuNum=1):
+    if fileoutput:
+        st = datetime.datetime.\
+                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+        filepath += str(n)+"_"
+        if onlyR != None: filepath += str(onlyR)+"_"
+        filepath += st
+    border = border(n)
+    p = startPrime
+    if onlyR != None and p**onlyR > border: return
+
+    gen = runGenerator(border,[startPrime,stopPrime],[onlyR,onlyR])
+    pool = Pool(cpuNum)
+    for p,r,n,(x,pol) in pool.imap( findAnyPCN_polynom__star, \
+            ((p,r,n) for p,r in gen) ):
+        print "(",p,", ",r,") = ", pol
+        if fileoutput:
+            with open(filepath,'a') as f:
+                f.write(str(p)+"\t"+str(r)
+                        +"\t"+str(pol)+"\n")
+            f.close();
+    pool.close()
+    pool.join()
+
+
+def findAnyPCN_polynom_wrapper_const_p(n, p, border=lambda n:n**4, \
+        fileoutput=False, filepath="pcns_trinom_", \
+        startR=2, \
+        cpuNum=1):
+    if fileoutput:
+        st = datetime.datetime.\
+                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+        filepath += str(n)+"_"
+    border = border(n)
+    
+    gen = runGenerator(border,[p-1,p], [startR,100])
+    pool = Pool(cpuNum)
+    for p,r,n,(x,pol) in pool.imap_unordered( findAnyPCN_polynom__star, \
+            ((p,r,n) for p,r in gen) ):
+        print "(",p,", ",r,") = ", pol
+        if fileoutput:
+            with open(filepath+str(r)+"_"+st,'a') as f:
+                f.write(str(p)+"\t"+str(r)
+                        +"\t"+str(pol)+"\n")
+            f.close();
+    pool.close()
+    pool.join()
+
+def findAnyPCN_polynom__star(prn):
+    return prn[0],prn[1],prn[2],findAnyPCN_polynom(*prn)
+
+
+def runGenerator(border,pRange=None,rRange=None):
+    if pRange == None:
+        p = 1
+    else:
+        p = pRange[0]
+    while p < border :
+        p = next_prime(p)
+        if pRange != None and p > pRange[1]: return
+        # consider only rs in rRange
+        if rRange != None:
+            for r in xrange(rRange[0],rRange[1]+1):
+                if p**r > border: break
+                yield p,r
+        # consider all rs
+        else:
+            r = 1
+            q = p**r
+            while q < border:
+                yield p,r
+                r += 1
+                q = p**r
+
+
+def findAnyPCN_polynom_wrapper_mullen_level(\
+        pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
+        cpuNum=1, fileoutput=False, filepath="pcns_range_"):
+    if fileoutput:
+        st = datetime.datetime.\
+                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+    
+    gen = runGeneratorMullen(border,pRange,rRange,nRange)
+    
+    pool = Pool(cpuNum)
+    for p,r,n,(x,pol) in pool.imap_unordered( findAnyPCN_polynom__star, gen):
+        print "(",p,", ",r,", ",n, ") = ", pol
+        if fileoutput:
+            with open(filepath+st,'a') as f:
+                f.write(str(p)+"\t"+str(r)+"\t"+str(n)
+                        +"\t"+str(pol)+"\n")
+            f.close();
+    pool.close()
+    pool.join()
+
+
+
+def runGeneratorMullen(border,pRange,rRange,nRange):
+    stopP = pRange[1]
+    startP = pRange[0]
+    startR = rRange[0]
+    stopR = rRange[1]
+    startN = nRange[0]
+    stopN = nRange[1]
+    p = startP
+    r = startR
+    n = startN
+    while True:
+        q = p**r
+        yield Integer(p),Integer(r),Integer(n)
+        n += 1
+        if n > stopN or p**(r*n) > border:
+            n = startN
+            r += 1
+            if r > stopR or p**(r*n) > border: 
+                r = startR
+                p = next_prime(p)
+                if p > stopP: return
+
+
+
+
+
+##############################################################################
+## Slow Py Algorithms ########################################################
+##############################################################################
+
+
+# Tests x as Element of E on complete normality, i.e. tests for each 
+# d in divs, if the corresponding polynomials in prodsAll over the corresponding
+# field in fieldsAll vanishes on frobenius evaluation of x.
+# fieldsAll and facsAll are dicts indexed by the divisors of divs, where
+# fieldsAll[d] is the corresponding intermediate field of order q^d
+# and facsAll[d] is the factorization of x^(n/d)-1 over GF(q^d).
+# prodsAll[d] is the list of all possible cofactors of above factorization.
+def isCompletelyNormal(x,E, q, divs, fieldsAll, facsAll, prodsAll):
+    if x == E.zero(): return False
+    #test isNormal for each divisor
+    pows = dict()
+    for d in divs:
+        h = Hom(fieldsAll[d],E)[0];
+        for idx,(f,mult) in enumerate(facsAll[d]):
+            g = prodsAll[d][idx];
+            ret = E.zero();
+            iold = 0
+            xiold = x
+            for i,gi in enumerate(list(g)):
+                if pows.has_key(i*d):
+                    xi = pows[i*d];
+                    iold = i*d
+                    xiold = xi
+                else:
+                    xi = xiold**(q**(d*i-iold));
+                    pows[i*d] = xi;
+                    xiold = xi
+                    iold = i*d
+                ret += h(gi)*xi
+            if ret == 0: return False;
+    return True
+
+
+##############################################################################
+## Helper ####################################################################
+##############################################################################
+
+
+def get_padic_representation(number, p):
+    number = Integer(number)
+    p = Integer(p)
+    ret = []
+    q = number
+    while q > 0:
+        q,r = q.quo_rem(Integer(p));
+        ret += [r]
+    return list(reversed(ret))
+
+
+
+# computes the quadratic free part of an integer
+def squarefree(n):
+    return sage.all.prod(map(lambda x: x[0], sage.all.factor(Integer(n))))
+
+# computes ordn m(q) = min{ k: q ** k = 1 mod m }
+def ordn(m,q):
+    Zn = IntegerModRing(m)
+    return Zn(q).multiplicative_order()
+
+# Application of the Decomposition Theorem (Section 19)
+# for x^n-1 over F_p^e
+def decompose(p,e, n):
+    pi = largestDiv(p,n)
+    return decompose_cycl_module(p,e, 1, n/pi, pi)
+
+
+## returns the module characters of a decomposition
+## the module character of U_F,Phi_k(x^t) is k*t / nu(k)
+def get_module_characters(decomp):
+   return uniq(map(lambda l: l[0]*l[1]*l[2] / squarefree(l[0]),decomp))
+
+# returns the module characters of a cyclotomic module
+# the module character of U_F,Phi_k(x^t)^pi is k*t*pi / nu(k)
+def get_module_character(k,t,pi):
+    return Integer(k*t*pi/squarefree(k))
+
+# returns all divisors of the module characters of an extension
+# capped with the complete basic divisors
+# i.e. all intermediate fields that must be considered
+def get_proper_subfield_divisors(p,e, n):
+    basList = get_not_completely_basic_divisors(p,e,n)
+    return filter(lambda d: d in basList, \
+            list(uniq(itertools.chain(*map(divisors,\
+           get_module_characters(decompose(p,e,n)))))))
+
+
+# internal application of the Decomposition Theorem
+# for Phi_k(x^(t*pi)) over F_p^e
+def decompose_cycl_module(p,e, k,t,pi):
+    if p.divides(k*t): print "ERROR p | kt"
+    #test all prime divisors, start with largest one
+    flag = False
+    for r,l in reversed(factor(t)):
+        if not (r**l).divides(ordn(squarefree(k*t),p**e)):
+            R = largestDiv(r,t)
+            return decompose_cycl_module(p,e, k, t/r, pi) + decompose_cycl_module(p,e, k*R, t/R, pi)
+    return [(k,t,pi)]
+
+
+
+# returns the largest power of p dividing n
+def largestDiv(p,n):
+    l = 0
+    while (p**l).divides(n):
+        l = l+1
+    return p**(l-1);
+
+
+# returns the NOT completely basic divisors of an 
+# extension n over GF(p^e)
+def get_not_completely_basic_divisors(p,e,n):
+    n = Integer(n)
+    q = Integer(p**e)
+    divs = []
+    divsN = divisors(n)
+    while len(divsN) > 0:
+        d = divsN.pop(0)
+        #print "d=",d
+        isComplBasic = True
+        for r in prime_divisors(n/d):
+            #print "\tr=",r
+            #print "\t\t (n/d/r)\'=",p_free_part(n/d/r,p)," ordn(_,q^d)=",\
+                          #ordn(p_free_part(n/d/r,p),q**d)
+            if r.divides(ordn(p_free_part(n/d/r,p),q**d)):
+                #print "\t\t=> r | _"
+                isComplBasic = False
+                break
+        divs += [d]
+        if isComplBasic: 
+            #print "\t -> compl basic!"
+            divsN = filter(lambda k: not d.divides(k), divsN)
+            #print "\t new divsN=",divsN
+    return divs
+
+
+# p-free part of t
+def p_free_part(t,p):
+    while p.divides(t):
+        t /= p
+    return t
+
+
+
+
+# formats timedelta objects to nice string
+def strfdelta(tdelta):
+    d = {}
+    d["hours"], rem = divmod(tdelta.seconds, 3600)
+    d["hours"] += int(tdelta.days*24)
+    d["minutes"], d["seconds"] = divmod(rem, 60)
+    return "{hours}:{minutes}:{seconds}".format(**d)
+
+
+
+def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
+    Fx = PolynomialRing(F,'x');
+    E = x.parent();
+    q = F.order();
+    n = E.order().log(q);
+    if factors == []:
+        fac = (Fx.gen()**n-1).factor();
+    else:
+        fac = factors;
+    pows = dict();
+    pre = [];
+    for idx,(f,mult) in enumerate(fac):
+        for j in xrange(mult-1,-1,-1):
+            g = f.parent().one();
+            ev = pre + [j] + map(lambda i: i[1], fac[idx+1:]);
+            if prods == []:
+                #generate factor
+                for kidx, k in enumerate(ev):
+                    g *= fac[kidx][0]**k;
+            else:
+                g = prods[str(ev)];
+            ret = E.zero();
+            for i,g in enumerate(list(g)):
+                if pows != []:
+                    if pows.has_key(i):
+                        xi = pows[i];
+                    else:
+                        xi = x**(q**i);
+                        pows[i] = xi;
+                else: xi = x**(q**i);
+                try:
+                    ret += g*xi;
+                except:
+                    h = Hom(F,E)[0];
+                    ret += h(g)*xi;
+            if ret != 0:
+                pre += [j+1]; 
+                break;
+            elif j == 0: 
+                pre += [0];
+    if prods == []:
+        g = f.parent().one();
+        for jidx, j in enumerate(pre):
+            g *= fac[jidx][0]**j;
+    else:
+        g = prods[str(pre)]
+    gshifted = [Fx.zero()]*len(list(g))
+    for i, gi in enumerate(g):
+        if gi == 0: continue
+        gshifted[int(i/sigmaPower)] = gi
+    return Fx(gshifted)
