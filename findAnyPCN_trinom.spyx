@@ -81,7 +81,7 @@ def findAnyPCN_polynom(p,r,n):
                                 fieldsAll,facsAll,prodsAll):
                             #print "x = ",x,"\tcn: ",isCompletelyNormal(x,F),\
                                 #"prim: ", (x.multiplicative_order() == E.order()-1)
-                            return x,f
+                            return f
                         else: break
                     else: break
             firstRun = False
@@ -98,7 +98,7 @@ def findAnyPCN_polynom(p,r,n):
                                 fieldsAll,facsAll,prodsAll):
                             #print "x = ",x,"\tcn: ",isCompletelyNormal(x,F),\
                                 #"prim: ", (x.multiplicative_order() == E.order()-1)
-                            return x,f
+                            return f
                         else: break
                     else: break
     # test rest
@@ -119,7 +119,7 @@ def findAnyPCN_polynom(p,r,n):
                                     fieldsAll,facsAll,prodsAll):
                                 #print "x = ",y,"\tcn: ",isCompletelyNormal(y,F),\
                                     #"prim: ", (y.multiplicative_order() == E.order()-1)
-                                return y,f
+                                return f
                             else: break
                         else: break
 
@@ -174,7 +174,7 @@ def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
                 if E.gen().multiplicative_order() == primOrder \
                         and isCompletelyNormal(E.gen(),E,p,\
                             divs,fieldsAll,facsAll,prodsAll):
-                    return E.gen(),f
+                    return f
             firstRun = False
         else:
             #print primitives
@@ -188,7 +188,7 @@ def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
                 if E.gen().multiplicative_order() == primOrder \
                         and isCompletelyNormal(E.gen(),E,p,\
                             divs,fieldsAll,facsAll,prodsAll):
-                    return E.gen(),f
+                    return f
     # test rest
     for length in xrange(1,n-1):
         for idcs in itertools.combinations(xrange(1,n-1),length):
@@ -203,42 +203,10 @@ def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
                     if not f.is_irreducible(): continue
                     E = GF(orderE, name='a', modulus=f)
 
-                    if isPrimitive(E.gen(),primOrder,barFactors) \
+                    if E.gen().multiplicative_order() == primOrder \
                             and isCompletelyNormal(E.gen(),E,p,\
                                 divs,fieldsAll,facsAll,prodsAll):
-                        return E.gen(),f
-
-
-def numsf(f):
-    #i_f = [ i for (i,a) in enumerate(list(f)) if a != 0 ]
-    #a_f = [ a for ]
-    #return str(i_f)
-    p = f.base_ring().characteristic()
-    return f.hamming_weight(),sum([ p**i*Integer(a) for (i,a) in enumerate(list(f)) ])
-
-
-def leq(f,g):
-    i_f = [ i for (i,a) in enumerate(list(f)) if a != 0 ]
-    i_g = [ i for (i,a) in enumerate(list(g)) if a != 0 ]
-    if len(i_f) < len(i_g): return True
-    elif len(i_f) > len(i_g): return False
-
-    # lex order on i_f
-    if i_f < i_g: return True
-    elif i_f > i_g: return False
-
-
-    # i_f == i_g
-    a_f = [ a for (i,a) in enumerate(reversed(list(f))) if a != 0 ]
-    a_g = [ a for (i,a) in enumerate(reversed(list(g))) if a != 0 ]
-    if len(a_f) < len(a_g): return True
-    elif len(a_f) > len(a_g): return False
-
-    # lex order on a_f
-    if a_f < a_g: return True
-    elif a_f > a_g: return False
-    return "ERROR"
-
+                        return f
 
 
 
@@ -258,7 +226,7 @@ def findAnyPCN_polynom_wrapper(n, border=lambda n:n**4, \
 
     gen = runGenerator(border,[startPrime,stopPrime],[onlyR,onlyR])
     pool = Pool(cpuNum)
-    for p,r,n,(x,pol) in pool.imap( findAnyPCN_polynom__star, \
+    for p,r,n,pol in pool.imap( findAnyPCN_polynom__star, \
             ((p,r,n) for p,r in gen) ):
         print "(",p,", ",r,") = ", pol
         if fileoutput:
@@ -320,49 +288,98 @@ def runGenerator(border,pRange=None,rRange=None):
                 q = p**r
 
 
-def findAnyPCN_polynom_wrapper_mullen_level(\
-        pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
-        cpuNum=1, fileoutput=False, filepath="pcns_range_"):
+
+
+def goodBorder(n):
+    n = Integer(n)
+    return ceil(find_root( \
+            var('q') == \
+            1/log(2)*( sum(divisors(n))-1 )*(log(2) + n*log(var('q'))), \
+            1, n**4 ))
+
+
+# checks if a PCN elements exists by
+# checking the inequality
+# |P| >= |H| - 1 
+# where H is estimated
+def numericExistence(p,r,n):
+    p = Integer(p)
+    r = Integer(r)
+    n = Integer(n)
+    q = p**r
+    qn = q**n
+    
+    # calc not normals
+    divs = get_proper_subfield_divisors(p,r,n)
+    notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
+
+    # check approx primitives
+    if log(2)*(qn-1)/log(2*qn) > notnorms: 
+        return True
+    
+    # calc primitives
+    prims = 1
+    Zx = PolynomialRing(ZZ,'x')
+    for d in divisors(r*n):
+        prims *= euler_phi(Zx.cyclotomic_polynomial(d)(p))
+        if prims > notnorms: return False
+
+    return False
+
+
+def iterateNumericExistence(n):
+    border = goodBorder(n)
+    for q in itertools.count(2):
+        if q > border: return
+        fac = list(factor(q))
+        if len(fac) == 1:
+            p = fac[0][0]
+            r = fac[0][1]
+            print p,r,"\t=>",numericExistence(p,r,n)
+            if not numericExistence(p,r,n):
+                print "\t", findAnyPCN_polynom(p,r,n)[1]
+
+def primePowerGenerator(n):
+    border = goodBorder(n)
+    for q in itertools.count(2):
+        if q > border: return
+        fac = list(factor(q))
+        if len(fac) == 1:
+            p = fac[0][0]
+            r = fac[0][1]
+            yield p,r
+
+def findAnyPCN_polynom_numeric_approx__star(prn):
+    if numericExistence(prn[0],prn[1],prn[2]): 
+        return prn[0],prn[1],prn[2],True
+    else: 
+        return prn[0],prn[1],prn[2],findAnyPCN_polynom(*prn)
+
+
+
+def findAnyPCN_numeric_approx(n, \
+        fileoutput=False, filepath="out/pcns_trinom_", \
+        cpuNum=1):
     if fileoutput:
         st = datetime.datetime.\
                 fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+        filepath += str(n)+"_"+st
     
-    gen = runGeneratorMullen(border,pRange,rRange,nRange)
-    
+    gen = primePowerGenerator(n)
     pool = Pool(cpuNum)
-    for p,r,n,(x,pol) in pool.imap_unordered( findAnyPCN_polynom__star, gen):
-        print "(",p,", ",r,", ",n, ") = ", pol
+    for p,r,n,pol in pool.imap_unordered( \
+            findAnyPCN_polynom_numeric_approx__star, \
+            ((p,r,n) for p,r in gen) ):
+        print "(",p,", ",r,") = ", pol
         if fileoutput:
-            with open(filepath+st,'a') as f:
-                f.write(str(p)+"\t"+str(r)+"\t"+str(n)
+            with open(filepath,'a') as f:
+                f.write(str(p)+"\t"+str(r)
                         +"\t"+str(pol)+"\n")
             f.close();
     pool.close()
     pool.join()
 
 
-
-def runGeneratorMullen(border,pRange,rRange,nRange):
-    stopP = pRange[1]
-    startP = pRange[0]
-    startR = rRange[0]
-    stopR = rRange[1]
-    startN = nRange[0]
-    stopN = nRange[1]
-    p = startP
-    r = startR
-    n = startN
-    while True:
-        q = p**r
-        yield Integer(p),Integer(r),Integer(n)
-        n += 1
-        if n > stopN or p**(r*n) > border:
-            n = startN
-            r += 1
-            if r > stopR or p**(r*n) > border: 
-                r = startR
-                p = next_prime(p)
-                if p > stopP: return
 
 
 
