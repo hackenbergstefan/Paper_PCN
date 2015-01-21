@@ -9,9 +9,9 @@ import time
 import os
 import ast
 
-def findAnyPCN_polynom(p,r,n):
+def findAnyPCN_polynom(p,r,n, factors=None):
     #if r == 1:
-    return findAnyPCN_polynom_prime(p,r*n)
+    return findAnyPCN_polynom_prime(p,r*n,factors)
 
     q = p**r
     F = GF(q,'a')
@@ -124,7 +124,9 @@ def findAnyPCN_polynom(p,r,n):
                         else: break
 
 # special function for testing extensions of PrimeFields
-def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
+# if factors != None assume factors is a list containing the complete
+# factorization of p**n-1
+def findAnyPCN_polynom_prime(p,n,factors=None):
     p = Integer(p)
     n = Integer(n)
     F = GF(p)
@@ -135,6 +137,15 @@ def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
     primOrder = orderE-1
 
     primitives = []
+
+    #setup barFactors 
+    barFactors = None
+    if factors != None:
+        barFactors = []
+        for i,(fac,mul) in enumerate(factors):
+            barFactors += [prod( map(lambda fm: fm[0]**fm[1],
+                    factors[:i] + [(fac,mul-1)] + factors[i+1:] ))]
+
 
     #setup factors of x^n-1
     divs = get_proper_subfield_divisors(p,1,n)
@@ -171,7 +182,7 @@ def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
                 
                 E = GF(orderE, name='a', modulus=f)
 
-                if E.gen().multiplicative_order() == primOrder \
+                if isPrimitive(E.gen(), barFactors) \
                         and isCompletelyNormal(E.gen(),E,p,\
                             divs,fieldsAll,facsAll,prodsAll):
                     return f
@@ -185,7 +196,7 @@ def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
                 if not f.is_irreducible(): continue
                 E = GF(orderE, name='a', modulus=f)
 
-                if E.gen().multiplicative_order() == primOrder \
+                if isPrimitive(E.gen(),barFactors) \
                         and isCompletelyNormal(E.gen(),E,p,\
                             divs,fieldsAll,facsAll,prodsAll):
                     return f
@@ -203,10 +214,20 @@ def findAnyPCN_polynom_prime(p,n,primitivity_with_bar_factors=False):
                     if not f.is_irreducible(): continue
                     E = GF(orderE, name='a', modulus=f)
 
-                    if E.gen().multiplicative_order() == primOrder \
+                    if isPrimitive(E.gen(),barFactors) \
                             and isCompletelyNormal(E.gen(),E,p,\
                                 divs,fieldsAll,facsAll,prodsAll):
                         return f
+
+
+# tests x for primitivity
+def isPrimitive(x,barFactors=None):
+    if barFactors==None:
+        return x.multiplicative_order() == x.parent().order()-1
+    else:
+        for b in barFactors:
+            if x**b == x.parent().one(): return False
+        return True
 
 
 
@@ -302,7 +323,7 @@ def goodBorder(n):
 # checking the inequality
 # |P| >= |H| - 1 
 # where H is estimated
-def numericExistence(p,r,n):
+def numericExistence(p,r,n, factors=None):
     p = Integer(p)
     r = Integer(r)
     n = Integer(n)
@@ -318,10 +339,13 @@ def numericExistence(p,r,n):
         return True
     
     # calc primitives
+    # by calculating euler_phi(q**n-1) = prod_(d|r*n) euler_phi(Phi_d(p))
     prims = 1
     Zx = PolynomialRing(ZZ,'x')
     for d in divisors(r*n):
-        prims *= euler_phi(Zx.cyclotomic_polynomial(d)(p))
+        phip = Zx.cyclotomic_polynomial(d)(p) 
+        if factors != None: factors += list(factor(phip))
+        prims *= euler_phi(phip)
         if prims > notnorms: return False
 
     return False
@@ -339,9 +363,10 @@ def iterateNumericExistence(n):
             if not numericExistence(p,r,n):
                 print "\t", findAnyPCN_polynom(p,r,n)[1]
 
-def primePowerGenerator(n):
+def primePowerGenerator(n,startq=None):
     border = goodBorder(n)
     for q in itertools.count(2):
+        if startq != None and q < startq: continue
         if q > border: return
         fac = list(factor(q))
         if len(fac) == 1:
@@ -350,14 +375,21 @@ def primePowerGenerator(n):
             yield p,r
 
 def findAnyPCN_polynom_numeric_approx__star(prn):
-    if numericExistence(prn[0],prn[1],prn[2]): 
+    p = prn[0]
+    r = prn[1]
+    n = prn[2]
+    factors = None
+    if r > 1:
+        factors = []
+    
+    if numericExistence(prn[0],prn[1],prn[2],factors): 
         return prn[0],prn[1],prn[2],True
     else: 
-        return prn[0],prn[1],prn[2],findAnyPCN_polynom(*prn)
+        return prn[0],prn[1],prn[2],findAnyPCN_polynom(prn[0],prn[1],prn[2],factors)
 
 
 
-def findAnyPCN_numeric_approx(n, \
+def findAnyPCN_numeric_approx(n, startq=None, \
         fileoutput=False, filepath="out/pcns_trinom_", \
         cpuNum=1):
     if fileoutput:
@@ -365,7 +397,7 @@ def findAnyPCN_numeric_approx(n, \
                 fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
         filepath += str(n)+"_"+st
     
-    gen = primePowerGenerator(n)
+    gen = primePowerGenerator(n,startq)
     pool = Pool(cpuNum)
     for p,r,n,pol in pool.imap_unordered( \
             findAnyPCN_polynom_numeric_approx__star, \
