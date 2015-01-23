@@ -336,14 +336,14 @@ def numericExistence(p,r,n, factors=None):
     #print "notnorms = %E"%notnorms
 
     # check approx primitives
-    #print "approx 1 = %E"%(log(2)*(qn-1)/log(2*qn))
-    if log(2)*(qn-1)/log(2*qn) > notnorms: 
+    #print "approx 1 = %E"%(log(2)*(qn-1)/log(2*(qn-1)))
+    if log(2)*(qn-1)/log(2*(qn-1)) > notnorms: 
         return True
 
     # check approximation for euler_phi:
     # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n ) 
     #print "approx 2 = %E"%(qn / ( e**euler_gamma * log(log(qn)) + 3/log(log(qn))))
-    if qn / ( e**euler_gamma * log(log(qn)) + 3/log(log(qn)) ) > notnorms:
+    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) > notnorms:
         return True
 
     
