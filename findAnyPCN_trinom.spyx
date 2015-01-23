@@ -337,16 +337,17 @@ def numericExistence(p,r,n, factors=None):
     # check approx primitives
     if log(2)*(qn-1)/log(2*qn) > notnorms: 
         return True
+
     
     # calc primitives
     # by calculating euler_phi(q**n-1) = prod_(d|r*n) euler_phi(Phi_d(p))
-    prims = 1
     Zx = PolynomialRing(ZZ,'x')
+    prims = 1
     for d in divisors(r*n):
-        phip = Zx.cyclotomic_polynomial(d)(p) 
-        if factors != None: factors += list(factor(phip))
-        prims *= euler_phi(phip)
-        if prims > notnorms: return False
+        phiFac = list(factor(Zx.cyclotomic_polynomial(d)(p) ))
+        if factors != None: factors += phiFac
+        prims *= prod(map(lambda fm: euler_phi(fm[0]**fm[1]), phiFac))
+        if prims > notnorms: return True
 
     return False
 
