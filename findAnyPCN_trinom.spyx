@@ -333,9 +333,17 @@ def numericExistence(p,r,n, factors=None):
     # calc not normals
     divs = get_proper_subfield_divisors(p,r,n)
     notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
+    #print "notnorms = %E"%notnorms
 
     # check approx primitives
+    #print "approx 1 = %E"%(log(2)*(qn-1)/log(2*qn))
     if log(2)*(qn-1)/log(2*qn) > notnorms: 
+        return True
+
+    # check approximation for euler_phi:
+    # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n ) 
+    #print "approx 2 = %E"%(qn / ( e**euler_gamma * log(log(qn)) + 3/log(log(qn))))
+    if qn / ( e**euler_gamma * log(log(qn)) + 3/log(log(qn)) ) > notnorms:
         return True
 
     
@@ -347,6 +355,7 @@ def numericExistence(p,r,n, factors=None):
         phiFac = list(factor(Zx.cyclotomic_polynomial(d)(p) ))
         if factors != None: factors += phiFac
         prims *= prod(map(lambda fm: euler_phi(fm[0]**fm[1]), phiFac))
+        #print "prims >= %E"%prims
         if prims > notnorms: return True
 
     return False
