@@ -357,7 +357,7 @@ def numericExistence(p,r,n, factors=[]):
         phiFac = list(factor(Zx.cyclotomic_polynomial(d)(p) ))
         #print "\tphifac=",phiFac
         factors += phiFac
-        factors = _organizeFactorization(factors)
+        _organizeFactorization(factors)
         #print "factors = ", factors
         prims = 1
         for (f,mul) in factors:
@@ -378,7 +378,8 @@ def _organizeFactorization(fac):
             ret += [(p,mul)]
         else:
             ret[prims.index(p)] = (p,ret[prims.index(p)][1] + mul)
-    return ret
+    fac[:] = []
+    fac += ret
 
 
 def iterateNumericExistence(n):
@@ -408,9 +409,7 @@ def findAnyPCN_polynom_numeric_approx__star(prn):
     p = prn[0]
     r = prn[1]
     n = prn[2]
-    factors = None
-    if r > 1:
-        factors = []
+    factors = []
     
     if numericExistence(prn[0],prn[1],prn[2],factors): 
         return prn[0],prn[1],prn[2],True
