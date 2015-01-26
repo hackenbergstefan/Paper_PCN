@@ -323,7 +323,7 @@ def goodBorder(n):
 # checking the inequality
 # |P| >= |H| - 1 
 # where H is estimated
-def numericExistence(p,r,n, factors=None):
+def numericExistence(p,r,n, factors=[]):
     p = Integer(p)
     r = Integer(r)
     n = Integer(n)
@@ -334,31 +334,51 @@ def numericExistence(p,r,n, factors=None):
     divs = get_proper_subfield_divisors(p,r,n)
     notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
     #print "notnorms = %E"%notnorms
+    #print "notnorms = ",notnorms
 
     # check approx primitives
     #print "approx 1 = %E"%(log(2)*(qn-1)/log(2*(qn-1)))
-    if log(2)*(qn-1)/log(2*(qn-1)) > notnorms: 
-        return True
+    #if log(2)*(qn-1)/log(2*(qn-1)) > notnorms: 
+        #return True
 
     # check approximation for euler_phi:
     # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n ) 
-    #print "approx 2 = %E"%(qn / ( e**euler_gamma * log(log(qn)) + 3/log(log(qn))))
+    #print "approx 2 = %E"%((qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1))))
+    #print "approx 2 = ",round((qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1))),3)
     if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) > notnorms:
         return True
-
     
     # calc primitives
-    # by calculating euler_phi(q**n-1) = prod_(d|r*n) euler_phi(Phi_d(p))
+    # using q**n-1 = prod_(d|r*n) Phi_d(p)
     Zx = PolynomialRing(ZZ,'x')
-    prims = 1
     for d in divisors(r*n):
+        #print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
+                #" -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
         phiFac = list(factor(Zx.cyclotomic_polynomial(d)(p) ))
-        if factors != None: factors += phiFac
-        prims *= prod(map(lambda fm: euler_phi(fm[0]**fm[1]), phiFac))
-        #print "prims >= %E"%prims
-        if prims > notnorms: return True
-
+        #print "\tphifac=",phiFac
+        factors += phiFac
+        factors = _organizeFactorization(factors)
+        #print "factors = ", factors
+        prims = 1
+        for (f,mul) in factors:
+            prims *= f**(mul-1)*(f-1)
+            if prims > notnorms: return True
+        #print "prims = ",prims
+    #print "prims = %E"%prims
+    #print "prims2 = %E"%prims2
+        #if prims > notnorms: return True
     return False
+
+def _organizeFactorization(fac):
+    prims = []
+    ret = []
+    for (p,mul) in fac:
+        if not p in prims:
+            prims += [p]
+            ret += [(p,mul)]
+        else:
+            ret[prims.index(p)] = (p,ret[prims.index(p)][1] + mul)
+    return ret
 
 
 def iterateNumericExistence(n):
