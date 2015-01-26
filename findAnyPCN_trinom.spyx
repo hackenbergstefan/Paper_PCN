@@ -354,7 +354,7 @@ def numericExistence(p,r,n, factors=[]):
     for d in divisors(r*n):
         #print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
                 #" -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
-        phiFac = list(factor(Zx.cyclotomic_polynomial(d)(p) ))
+        phiFac = list(factor(Zx.cyclotomic_polynomial(d)(p),algorithm='ecm' ))
         #print "\tphifac=",phiFac
         factors += phiFac
         _organizeFactorization(factors)
