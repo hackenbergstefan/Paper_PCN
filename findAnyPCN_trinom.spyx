@@ -330,6 +330,9 @@ def numericExistence(p,r,n, factors=[]):
     q = p**r
     qn = q**n
     
+    if isRegular(p,r,1,n,1):
+        return "Regular"
+    
     # calc not normals
     divs = get_proper_subfield_divisors(p,r,n)
     notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
@@ -340,6 +343,7 @@ def numericExistence(p,r,n, factors=[]):
     #print "approx 1 = %E"%(log(2)*(qn-1)/log(2*(qn-1)))
     #if log(2)*(qn-1)/log(2*(qn-1)) > notnorms: 
         #return True
+    
 
     # check approximation for euler_phi:
     # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n ) 
@@ -347,7 +351,7 @@ def numericExistence(p,r,n, factors=[]):
     #print "approx 2 = ",round((qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1))),3)
     if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) > notnorms:
         return True
-    
+
     # calc primitives
     # using q**n-1 = prod_(d|r*n) Phi_d(p)
     Zx = PolynomialRing(ZZ,'x')
@@ -411,8 +415,9 @@ def findAnyPCN_polynom_numeric_approx__star(prn):
     n = prn[2]
     factors = []
     
-    if numericExistence(prn[0],prn[1],prn[2],factors): 
-        return prn[0],prn[1],prn[2],True
+    numEx = numericExistence(prn[0],prn[1],prn[2],factors)
+    if numEx != False:
+        return prn[0],prn[1],prn[2],numEx
     else: 
         return prn[0],prn[1],prn[2],findAnyPCN_polynom(prn[0],prn[1],prn[2],factors)
 
@@ -592,6 +597,9 @@ def p_free_part(t,p):
         t /= p
     return t
 
+# tests if cyclotomic module C_k,t is regular over F_p^e
+def isRegular(p,e, k,t,pi):
+    return gcd( ordn( squarefree(k*p_free_part(t,p)), p**e ),  k*t*pi) == 1
 
 
 
