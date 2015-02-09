@@ -8,6 +8,9 @@ import datetime
 import time
 import os
 import ast
+import string
+import glob
+from subprocess import check_output
 
 def findAnyPCN_polynom(p,r,n, factors=None):
     #if r == 1:
@@ -358,9 +361,19 @@ def numericExistence(p,r,n, factors=[]):
     for d in divisors(r*n):
         #print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
                 #" -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
-        phiFac = list(factor(Zx.cyclotomic_polynomial(d)(p),algorithm='ecm' ))
-        #print "\tphifac=",phiFac
-        factors += phiFac
+        phi = Zx.cyclotomic_polynomial(d)(p)
+        # test all primes already computed
+        facs = list(factors)  #first copy list
+        for s,t in facs: 
+            i = 0
+            while s.divides(phi): 
+                i += 1
+                phi /= s
+            if i > 0: 
+                #print "old factor ",s," reused!"
+                factors += [(s,i)]
+        # no more "good" factors are known, so factor phi with msieve
+        factors += factor_msieve(phi)
         _organizeFactorization(factors)
         #print "factors = ", factors
         prims = 1
@@ -371,6 +384,9 @@ def numericExistence(p,r,n, factors=[]):
     #print "prims = %E"%prims
     #print "prims2 = %E"%prims2
         #if prims > notnorms: return True
+    # check factorization
+    #if prod(map(lambda pr: pr[0]**pr[1], factors)) != qn-1:
+        #print "FATAL ERROR on ",(p,r,n)," with factors = ",factors
     return False
 
 def _organizeFactorization(fac):
@@ -383,7 +399,7 @@ def _organizeFactorization(fac):
         else:
             ret[prims.index(p)] = (p,ret[prims.index(p)][1] + mul)
     fac[:] = []
-    fac += ret
+    fac += sorted(ret)
 
 
 def iterateNumericExistence(n):
@@ -417,14 +433,16 @@ def findAnyPCN_polynom_numeric_approx__star(prn):
     
     numEx = numericExistence(prn[0],prn[1],prn[2],factors)
     if numEx != False:
-        return prn[0],prn[1],prn[2],numEx
+        return prn[0],prn[1],prn[2],numEx,factorization2string(factors)
     else: 
-        return prn[0],prn[1],prn[2],findAnyPCN_polynom(prn[0],prn[1],prn[2],factors)
+        return prn[0],prn[1],prn[2],\
+                findAnyPCN_polynom(prn[0],prn[1],prn[2],factors),\
+                factorization2string(factors)
 
 
 
 def findAnyPCN_numeric_approx(n, startq=None, \
-        fileoutput=False, filepath="out/pcns_trinom_", \
+        fileoutput=False, filepath="out/pcns_trinom_v1.1_", \
         cpuNum=1):
     if fileoutput:
         st = datetime.datetime.\
@@ -433,19 +451,69 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     
     gen = primePowerGenerator(n,startq)
     pool = Pool(cpuNum)
-    for p,r,n,pol in pool.imap_unordered( \
+    for p,r,n,pol,facs in pool.imap_unordered( \
             findAnyPCN_polynom_numeric_approx__star, \
             ((p,r,n) for p,r in gen) ):
-        print "(",p,", ",r,") = ", pol
+        print "(",p,", ",r,", ",n,") = ", pol,"\t",facs
         if fileoutput:
             with open(filepath,'a') as f:
                 f.write(str(p)+"\t"+str(r)
-                        +"\t"+str(pol)+"\n")
+                        +"\t"+str(pol)+"\t"+facs+"\n")
             f.close();
     pool.close()
     pool.join()
 
 
+
+##############################################################################
+## Correct data in files #####################################################
+##############################################################################
+
+
+def checkData(inFolder="./out/"):
+    ns = []
+    for fin in glob.glob(inFolder+"pcns_trinom_*"):
+        ns += [Integer(re.compile("pcns_trinom_(\d+)").search(fin).groups()[0])]
+    ns = uniq(ns)
+    for n in ns:
+        checkFiles(glob.glob(inFolder+"pcns_trinom_"+str(n)+"_*"))
+
+
+def checkFiles(files, outpath="./final/pcns_"):
+    data = []
+    for fin in files:
+        n = Integer(re.compile("pcns_trinom_(\d+)").search(fin).groups()[0])
+        with open(fin) as f:
+            for line in f:
+                if all(c in string.whitespace for c in line): continue
+                regroups = re.compile("(\d+)\s+(\d+)\s+(.+)$").search(line).groups()
+                p = Integer(regroups[0])
+                r = Integer(regroups[1])
+                res = regroups[2]
+                if isRegular(p,r,1,n,1):
+                    res = "Regular"
+                data += [(p,r,res)]
+                #print "p=",p,"\t","r=",r,"\tres=",res
+    toCheck = list(primePowerGenerator(n))
+    data = sorted(data)
+    fout = outpath+str(n)+".csv"
+    with open(fout,'w') as f:
+        f.write("p,\tr,\tresult\n")
+        for p,r,res in data:
+            try:
+                toCheck.remove((p,r))
+            except:
+                print "Error on removing (p,r,n)=",(p,r,n)," on file ",files
+            f.write(str(p)+",\t"+str(r)+",\t"+str(res)+"\n")
+    f.close()
+
+    print "n = ",n," missing = ",toCheck
+    if len(toCheck) > 0:
+        fout = outpath+"missing_"+str(n)
+        with open(fout,'w') as f:
+            for p,r in toCheck:
+                f.write(str(p)+",\t"+str(r))
+        f.close()
 
 
 
@@ -664,3 +732,46 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
         if gi == 0: continue
         gshifted[int(i/sigmaPower)] = gi
     return Fx(gshifted)
+
+
+##############################################################################
+## Factorization Methods #####################################################
+##############################################################################
+
+# Factors n with msieve
+#
+# returns a list of tuples (p,r) representing the complete factorization of
+# n where all p's are distinct primes
+#
+# msieve must be installed and in PATH!
+def factor_msieve(n):
+    s = check_output(["msieve","-n","-v","-q",str(n)])
+    prime_factors = []
+    factorization = []
+    for l in s.split("\n"):
+        match = re.search("^p\S+: (\d+)$",l)
+        if match:
+            p = Integer(match.groups()[0])
+            if p in prime_factors:
+                idx = prime_factors.index(p)
+                factorization[idx] = \
+                        (p,factorization[idx][1]+1)
+            else:
+                prime_factors += [p]
+                factorization += [(p,1)]
+    return factorization
+
+
+def factorization2string(factorization):
+    if factorization == []: return ""
+    s = ""
+    for idx, (p,r) in enumerate(factorization):
+        s += str(p)
+        if r > 1: 
+            s += "^"+str(r)
+        if idx < len(factorization) - 1:
+            s += " * "
+    return s
+
+
+
