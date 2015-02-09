@@ -766,7 +766,7 @@ def factor_msieve(n):
                     factorization += [(p,1)]
         return factorization
     except:
-        return factor(n,algorithm='ecm')
+        return list(factor(n,algorithm='ecm'))
 
 
 def factorization2string(factorization):
