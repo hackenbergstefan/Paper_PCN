@@ -10,7 +10,7 @@ import os
 import ast
 import string
 import glob
-from subprocess import check_output
+import subprocess
 
 def findAnyPCN_polynom(p,r,n, factors=None):
     #if r == 1:
@@ -457,7 +457,7 @@ def findAnyPCN_numeric_approx(n, startq=None, \
         print "(",p,", ",r,", ",n,") = ", pol,"\t",facs
         if fileoutput:
             with open(filepath,'a') as f:
-                f.write(str(p)+"\t"+str(r)
+                f.write(str(p)+"\t"+str(r) \
                         +"\t"+str(pol)+"\t"+facs+"\n")
             f.close();
     pool.close()
@@ -745,21 +745,28 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
 #
 # msieve must be installed and in PATH!
 def factor_msieve(n):
-    s = check_output(["msieve","-n","-v","-q",str(n)])
-    prime_factors = []
-    factorization = []
-    for l in s.split("\n"):
-        match = re.search("^p\S+: (\d+)$",l)
-        if match:
-            p = Integer(match.groups()[0])
-            if p in prime_factors:
-                idx = prime_factors.index(p)
-                factorization[idx] = \
-                        (p,factorization[idx][1]+1)
-            else:
-                prime_factors += [p]
-                factorization += [(p,1)]
-    return factorization
+    #print "call msieve -n -v -q "+str(n)
+    try:
+        s = subprocess.check_output(["msieve","-n","-v","-q",str(n)], \
+                stderr=subprocess.STDOUT)
+        #print "got ",s," from msieve -n -v -q "+str(n)
+        prime_factors = []
+        factorization = []
+        for l in s.split("\n"):
+            match = re.search("^p\S+: (\d+)$",l)
+            if match:
+                p = Integer(match.groups()[0])
+                if p == 1: continue
+                if p in prime_factors:
+                    idx = prime_factors.index(p)
+                    factorization[idx] = \
+                            (p,factorization[idx][1]+1)
+                else:
+                    prime_factors += [p]
+                    factorization += [(p,1)]
+        return factorization
+    except:
+        return factor(n,algorithm='ecm')
 
 
 def factorization2string(factorization):
