@@ -744,20 +744,34 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
 # n where all p's are distinct primes
 #
 # msieve must be installed and in PATH!
-def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/"):
+def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
+        msieve_on_error_repeat=0):
     #print "call msieve -n -v -q "+str(n)
     if not os.path.exists(msieve_tmp_folder):
         os.mkdir(msieve_tmp_folder)
-    tstmp = time.time()
-    try:
-        s = subprocess.check_output(["msieve","-e","-n","-v","-q",\
-                "-s", msieve_tmp_folder+"msieve_"+str(tstmp)+".dat",\
-                str(n)], \
-                stderr=subprocess.STDOUT)
-        #print "got ",s," from msieve -n -v -q "+str(n)
-        prime_factors = []
-        factorization = []
-        for l in s.split("\n"):
+    tstmp = str(Integer(time.time()*1E6))
+    #try:
+    flag = True
+    while flag:
+        tstmp = str(Integer(time.time()*1E6))
+        try:
+            os.mkdir(msieve_tmp_folder+tstmp)
+            flag = False
+        except:
+            pass
+    #s = subprocess.check_output(
+    f = open(msieve_tmp_folder+tstmp+"/out.txt","w")
+    p = subprocess.Popen(["msieve","-n","-e","-v","-q",\
+            str(n)], \
+            stdout=f,
+            cwd=msieve_tmp_folder+tstmp)
+    p.communicate()
+    f.close()
+    #print "got ",s," from msieve -n -v -q "+str(n)
+    prime_factors = []
+    factorization = []
+    with open(msieve_tmp_folder+tstmp+"/out.txt") as f:
+        for l in f:
             match = re.search("^p\S+: (\d+)$",l)
             if match:
                 p = Integer(match.groups()[0])
@@ -769,12 +783,10 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/"):
                 else:
                     prime_factors += [p]
                     factorization += [(p,1)]
-        purge(msieve_tmp_folder,"msieve_"+str(tstmp)+".dat*")
-        return factorization
-    except:
-        print "ERROR on :"
-        print "\t msieve -n -e -v -q "+str(n)
-        return list(factor(n,algorithm='ecm'))
+    f.close()
+    purge(msieve_tmp_folder+tstmp,".*")
+    os.rmdir(msieve_tmp_folder+tstmp)
+    return factorization
 
 
 def factorization2string(factorization):
