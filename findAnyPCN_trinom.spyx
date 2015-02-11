@@ -767,6 +767,8 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
             cwd=msieve_tmp_folder+tstmp)
     p.communicate()
     f.close()
+    if p.returncode != 0:
+        return list(factor(n,algorithm='ecm'))
     #print "got ",s," from msieve -n -v -q "+str(n)
     prime_factors = []
     factorization = []
