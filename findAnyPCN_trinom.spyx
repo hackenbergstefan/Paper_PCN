@@ -788,6 +788,8 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
     f.close()
     purge(msieve_tmp_folder+tstmp,".*")
     os.rmdir(msieve_tmp_folder+tstmp)
+    if factorization == []:
+        return list(factor(n,algorithm='ecm'))
     return factorization
 
 
