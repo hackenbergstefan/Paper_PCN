@@ -359,8 +359,8 @@ def numericExistence(p,r,n, factors=[]):
     # using q**n-1 = prod_(d|r*n) Phi_d(p)
     Zx = PolynomialRing(ZZ,'x')
     for d in divisors(r*n):
-        #print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
-                #" -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
+        print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
+                " -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
         phi = Zx.cyclotomic_polynomial(d)(p)
         # test all primes already computed
         facs = list(factors)  #first copy list
@@ -370,7 +370,7 @@ def numericExistence(p,r,n, factors=[]):
                 i += 1
                 phi /= s
             if i > 0: 
-                #print "old factor ",s," reused!"
+                print "old factor ",s," reused!"
                 factors += [(s,i)]
         # no more "good" factors are known, so factor phi with msieve
         factors += factor_msieve(phi)
@@ -746,6 +746,17 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
 # msieve must be installed and in PATH!
 def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
         msieve_on_error_repeat=0):
+    # try ecm for 1 minute
+    queue = multiprocessing.Queue()
+    p = multiprocessing.Process(target=factorECM, args=(n,queue,))
+    p.start()
+    p.join(60)
+    if p.is_alive(): 
+        p.terminate()
+        p.join()
+    else: return queue.get()
+
+
     #print "call msieve -n -v -q "+str(n)
     if not os.path.exists(msieve_tmp_folder):
         os.mkdir(msieve_tmp_folder)
@@ -763,9 +774,13 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
     f = open(msieve_tmp_folder+tstmp+"/out.txt","w")
     p = subprocess.Popen(["msieve","-n","-e","-v","-q",\
             str(n)], \
-            stdout=f,
+            stdout=f,\
+            stderr=subprocess.PIPE,\
             cwd=msieve_tmp_folder+tstmp)
-    p.communicate()
+    (stdout,stderr) = p.communicate()
+    if stderr != "":
+        return list(factor(n,algorithm='ecm'))
+    #print "on stderr:",stderr
     f.close()
     if p.returncode != 0:
         return list(factor(n,algorithm='ecm'))
@@ -791,6 +806,10 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
     if factorization == []:
         return list(factor(n,algorithm='ecm'))
     return factorization
+
+
+def factorECM(n,queue):
+    queue.put(list(factor(n,algorithm='ecm')))
 
 
 def factorization2string(factorization):
