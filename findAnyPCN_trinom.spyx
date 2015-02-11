@@ -3,6 +3,7 @@ import re
 import time
 from multiprocessing import Pool, Value
 import multiprocessing
+import multiprocessing.pool
 import itertools
 import datetime
 import time
@@ -450,7 +451,7 @@ def findAnyPCN_numeric_approx(n, startq=None, \
         filepath += str(n)+"_"+st
     
     gen = primePowerGenerator(n,startq)
-    pool = Pool(cpuNum)
+    pool = MyPool(cpuNum)
     for p,r,n,pol,facs in pool.imap_unordered( \
             findAnyPCN_polynom_numeric_approx__star, \
             ((p,r,n) for p,r in gen) ):
@@ -829,3 +830,22 @@ def purge(dir, pattern):
         if re.search(pattern, f):
             os.remove(os.path.join(dir, f))
 
+##############################################################################
+## Pool in Deamon Mode #######################################################
+##############################################################################
+
+# From 
+# http://stackoverflow.com/questions/6974695/python-process-pool-non-daemonic
+
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# because the latter is only a wrapper function, not a proper class.
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
