@@ -359,8 +359,8 @@ def numericExistence(p,r,n, factors=[]):
     # using q**n-1 = prod_(d|r*n) Phi_d(p)
     Zx = PolynomialRing(ZZ,'x')
     for d in divisors(r*n):
-        print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
-                " -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
+        #print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
+                #" -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
         phi = Zx.cyclotomic_polynomial(d)(p)
         # test all primes already computed
         facs = list(factors)  #first copy list
@@ -370,7 +370,7 @@ def numericExistence(p,r,n, factors=[]):
                 i += 1
                 phi /= s
             if i > 0: 
-                print "old factor ",s," reused!"
+                #print "old factor ",s," reused!"
                 factors += [(s,i)]
         # no more "good" factors are known, so factor phi with msieve
         factors += factor_msieve(phi)
