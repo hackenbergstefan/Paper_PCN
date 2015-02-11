@@ -454,7 +454,7 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     for p,r,n,pol,facs in pool.imap_unordered( \
             findAnyPCN_polynom_numeric_approx__star, \
             ((p,r,n) for p,r in gen) ):
-        print "(",p,", ",r,", ",n,") = ", pol,"\t",facs
+        print "(",p,", ",r,", ",n,") = ", pol,"\t"
         if fileoutput:
             with open(filepath,'a') as f:
                 f.write(str(p)+"\t"+str(r) \
@@ -744,10 +744,15 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
 # n where all p's are distinct primes
 #
 # msieve must be installed and in PATH!
-def factor_msieve(n):
+def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/"):
     #print "call msieve -n -v -q "+str(n)
+    if not os.path.exists(msieve_tmp_folder):
+        os.mkdir(msieve_tmp_folder)
+    tstmp = time.time()
     try:
-        s = subprocess.check_output(["msieve","-n","-v","-q",str(n)], \
+        s = subprocess.check_output(["msieve","-e","-n","-v","-q",\
+                "-s", msieve_tmp_folder+"msieve_"+str(tstmp)+".dat",\
+                str(n)], \
                 stderr=subprocess.STDOUT)
         #print "got ",s," from msieve -n -v -q "+str(n)
         prime_factors = []
@@ -764,8 +769,11 @@ def factor_msieve(n):
                 else:
                     prime_factors += [p]
                     factorization += [(p,1)]
+        purge(msieve_tmp_folder,"msieve_"+str(tstmp)+".dat*")
         return factorization
     except:
+        print "ERROR on :"
+        print "\t msieve -n -e -v -q "+str(n)
         return list(factor(n,algorithm='ecm'))
 
 
@@ -781,4 +789,8 @@ def factorization2string(factorization):
     return s
 
 
+def purge(dir, pattern):
+    for f in os.listdir(dir):
+        if re.search(pattern, f):
+            os.remove(os.path.join(dir, f))
 
