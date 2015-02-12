@@ -340,7 +340,12 @@ def numericExistence(p,r,n, factors=[]):
     # calc not normals
     divs = get_proper_subfield_divisors(p,r,n)
     notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
+    notnorms_better = sum([ qn - (q**k-1)**Integer(n/k) for k in divs]) \
+            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
+    notnorms_better_2 = sum([ n/k*(q**(n-k)-q**(n-2*k))+q**(n-2*k) for k in divs]) \
+            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
     #print "notnorms = %E"%notnorms
+    #print "notnorms better = %E"%notnorms_better
     #print "notnorms = ",notnorms
 
     # check approx primitives
@@ -353,7 +358,22 @@ def numericExistence(p,r,n, factors=[]):
     # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n ) 
     #print "approx 2 = %E"%((qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1))))
     #print "approx 2 = ",round((qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1))),3)
-    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) > notnorms:
+    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
+            > notnorms:
+        ##print (p,r,n),"notnorms good!"
+        return True
+    
+    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
+            > notnorms_better:
+        #print "notnorms = %E"%notnorms
+        #print "notnorms better = %E"%notnorms_better
+        #print "notnorms better 2 = %E"%notnorms_better_2
+        #print (p,r,n), "notnorms better good!"
+        return True
+    
+    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
+            > notnorms_better_2:
+        #print (p,r,n), "notnorms better 2 good!"
         return True
 
     # calc primitives
@@ -455,7 +475,7 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     for p,r,n,pol,facs in pool.imap_unordered( \
             findAnyPCN_polynom_numeric_approx__star, \
             ((p,r,n) for p,r in gen) ):
-        print "(",p,", ",r,", ",n,") = ", pol,"\t"
+        #print "(",p,", ",r,", ",n,") = ", pol,"\t"
         if fileoutput:
             with open(filepath,'a') as f:
                 f.write(str(p)+"\t"+str(r) \
@@ -746,6 +766,7 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
 #
 # msieve must be installed and in PATH!
 def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
+        msieve_path="../../ggnfs/msieve",\
         msieve_on_error_repeat=0):
     #return list(factor(n,algorithm='ecm'))
     # try ecm for 1 minute
@@ -778,7 +799,7 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
     #s = subprocess.check_output(
     f = open(msieve_tmp_folder+tstmp+"/out.txt","w")
     ferr = open(msieve_tmp_folder+tstmp+"/err.txt","w")
-    p = subprocess.Popen(["./../../msieve","-e","-n","-v","-q",\
+    p = subprocess.Popen([msieve_path,"-e","-n","-v","-q",\
             str(n)], \
             stdout=f,\
             stderr=ferr,\
