@@ -475,7 +475,7 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     for p,r,n,pol,facs in pool.imap_unordered( \
             findAnyPCN_polynom_numeric_approx__star, \
             ((p,r,n) for p,r in gen) ):
-        #print "(",p,", ",r,", ",n,") = ", pol,"\t"
+        print "(",p,", ",r,", ",n,") = ", pol,"\t"
         if fileoutput:
             with open(filepath,'a') as f:
                 f.write(str(p)+"\t"+str(r) \
