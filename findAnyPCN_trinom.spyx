@@ -752,7 +752,7 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
     queue = multiprocessing.Queue()
     p = multiprocessing.Process(target=factorECM, args=(n,queue,))
     p.start()
-    p.join(10)
+    p.join(60)
     if p.is_alive(): 
         print "kill ecm"
         p.terminate()
