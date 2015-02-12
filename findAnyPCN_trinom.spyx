@@ -752,7 +752,7 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
     queue = multiprocessing.Queue()
     p = multiprocessing.Process(target=factorECM, args=(n,queue,))
     p.start()
-    p.join(60)
+    p.join(10)
     if p.is_alive(): 
         print "kill ecm"
         p.terminate()
@@ -777,21 +777,23 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
             pass
     #s = subprocess.check_output(
     f = open(msieve_tmp_folder+tstmp+"/out.txt","w")
+    ferr = open(msieve_tmp_folder+tstmp+"/err.txt","w")
     p = subprocess.Popen(["./../../msieve","-e","-n","-v","-q",\
             str(n)], \
             stdout=f,\
-            stderr=subprocess.PIPE,\
+            stderr=ferr,\
             cwd=msieve_tmp_folder+tstmp)
-    (stdout,stderr) = p.communicate()
-    if stderr:
-        print "ERROR on msieve!!!"
-        try:
-            p.terminate()
-            p.kill()
-            p.join()
-        except:
-            pass
-        return list(factor(n,algorithm='ecm'))
+    while p.poll() == None:
+        time.sleep(5)
+        if os.stat(msieve_tmp_folder+tstmp+"/err.txt").st_size > 0: 
+            print "ERROR on msieve!!!"
+            try:
+                p.terminate()
+                p.kill()
+                p.join()
+            except:
+                pass
+            return list(factor(n,algorithm='ecm'))
     if p.returncode != 0:
         print "RETURNCODE msieve = ", p.returncode
         return list(factor(n,algorithm='ecm'))
