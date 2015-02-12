@@ -747,14 +747,18 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
 # msieve must be installed and in PATH!
 def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
         msieve_on_error_repeat=0):
+    #return list(factor(n,algorithm='ecm'))
     # try ecm for 1 minute
     queue = multiprocessing.Queue()
     p = multiprocessing.Process(target=factorECM, args=(n,queue,))
     p.start()
     p.join(60)
     if p.is_alive(): 
+        print "kill ecm"
         p.terminate()
         p.join()
+        if p.is_alive():
+            print "ecm still alive!"
     else: return queue.get()
 
 
@@ -773,17 +777,33 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
             pass
     #s = subprocess.check_output(
     f = open(msieve_tmp_folder+tstmp+"/out.txt","w")
-    p = subprocess.Popen(["msieve","-n","-e","-v","-q",\
+    p = subprocess.Popen(["./../../msieve","-e","-n","-v","-q",\
             str(n)], \
             stdout=f,\
             stderr=subprocess.PIPE,\
             cwd=msieve_tmp_folder+tstmp)
     (stdout,stderr) = p.communicate()
-    if stderr != "":
+    if stderr:
+        print "ERROR on msieve!!!"
+        try:
+            p.terminate()
+            p.kill()
+            p.join()
+        except:
+            pass
         return list(factor(n,algorithm='ecm'))
+    if p.returncode != 0:
+        print "RETURNCODE msieve = ", p.returncode
+        return list(factor(n,algorithm='ecm'))
+
     #print "on stderr:",stderr
     f.close()
     if p.returncode != 0:
+        try:
+            p.terminate()
+            p.join()
+        except:
+            pass
         return list(factor(n,algorithm='ecm'))
     #print "got ",s," from msieve -n -v -q "+str(n)
     prime_factors = []
