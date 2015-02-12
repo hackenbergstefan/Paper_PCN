@@ -787,14 +787,22 @@ def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
         time.sleep(5)
         if os.stat(msieve_tmp_folder+tstmp+"/err.txt").st_size > 0: 
             print "ERROR on msieve!!!"
+            print "err:"
+            with open(msieve_tmp_folder+tstmp+"/err.txt", 'r') as fin:
+                print fin.read()
+            fin.close()
             try:
                 p.terminate()
                 p.kill()
                 p.join()
+                ferr.close()
+                f.close()
             except:
                 pass
             return list(factor(n,algorithm='ecm'))
     if p.returncode != 0:
+        ferr.close()
+        f.close()
         print "RETURNCODE msieve = ", p.returncode
         return list(factor(n,algorithm='ecm'))
 
