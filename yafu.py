@@ -178,7 +178,7 @@ class FactoringLibrary:
         """
         Cleans the Factoringlibrary, i.e. writes the file again
         """
-        update_lib()
+        self.update_lib()
         with open(self.__PATH_OF_LIB_FILE,'w') as f:
             for n in d.keys():
                 f.write(str(n)+"\t"+str(self.__facdict[n])+"\r\n")
