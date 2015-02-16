@@ -45,6 +45,9 @@ class Yafu:
             f.write("factor("+str(n)+")\r\n")
         f.close()
 
+        os.symlink(self.__PATH_OF_YAFU+".ini",\
+                self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+"/yafu.ini")
+
         #try:
         p = subprocess.Popen([os.path.abspath(self.__PATH_OF_YAFU), \
             "-batchfile", "job.bat",\
