@@ -388,6 +388,7 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     if fileoutput:
         filepath += str(n)+"_"+st
 
+    yafu.thelib.clean_lib()
 
     # process easy pairs
     pairs_not_easy = []

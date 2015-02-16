@@ -46,7 +46,7 @@ class Yafu:
         #try:
         p = subprocess.Popen([os.path.abspath(self.__PATH_OF_YAFU), \
             "-batchfile"\
-            ,os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".bat"), "-v",\
+            ,os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".bat"),\
             "-logfile"\
             , os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".log"),\
             "-session"\
