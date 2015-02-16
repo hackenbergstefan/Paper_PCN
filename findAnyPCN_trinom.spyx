@@ -318,17 +318,22 @@ def numericExistence(p,r,n, do_factorization=False\
                 #" -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
         phi = Zx.cyclotomic_polynomial(d)(p)
         if phi == 1: continue
-        if yafu.thelib.is_fac_easy(phi) or is_prime(phi):
+        try:
+            alarm(5)
             factors += list(factor(phi))
-        elif do_factorization:
-            all_good = False
-            factors += list(factor(phi,algorithm='ecm'))
-        elif known_factorization:
-            all_good = False
-            factors += yafu.thelib.from_lib(phi)
-        else:
-            all_good = False
-            phis_to_fac += [phi]
+        except AlarmInterrupt:
+            if (all_good or known_factorization) \
+                    and (yafu.thelib.is_fac_easy(phi) or is_prime(phi)):
+                factors += list(factor(phi))
+            elif do_factorization:
+                all_good = False
+                factors += list(factor(phi,algorithm='ecm'))
+            elif known_factorization:
+                all_good = False
+                factors += yafu.thelib.from_lib(phi)
+            else:
+                all_good = False
+                phis_to_fac += [phi]
 
     #print "factors = ", factors
     _organizeFactorization(factors)
