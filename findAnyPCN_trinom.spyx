@@ -12,6 +12,7 @@ import ast
 import string
 import glob
 import subprocess
+import yafu
 
 def findAnyPCN_polynom(p,r,n, factors=None):
     #if r == 1:
@@ -234,87 +235,6 @@ def isPrimitive(x,barFactors=None):
         return True
 
 
-
-def findAnyPCN_polynom_wrapper(n, border=lambda n:n**4, \
-        fileoutput=False, filepath="pcns_trinom_", \
-        startPrime=1, stopPrime=0, onlyR=None, \
-        cpuNum=1):
-    if fileoutput:
-        st = datetime.datetime.\
-                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
-        filepath += str(n)+"_"
-        if onlyR != None: filepath += str(onlyR)+"_"
-        filepath += st
-    border = border(n)
-    p = startPrime
-    if onlyR != None and p**onlyR > border: return
-
-    gen = runGenerator(border,[startPrime,stopPrime],[onlyR,onlyR])
-    pool = Pool(cpuNum)
-    for p,r,n,pol in pool.imap( findAnyPCN_polynom__star, \
-            ((p,r,n) for p,r in gen) ):
-        print "(",p,", ",r,") = ", pol
-        if fileoutput:
-            with open(filepath,'a') as f:
-                f.write(str(p)+"\t"+str(r)
-                        +"\t"+str(pol)+"\n")
-            f.close();
-    pool.close()
-    pool.join()
-
-
-def findAnyPCN_polynom_wrapper_const_p(n, p, border=lambda n:n**4, \
-        fileoutput=False, filepath="pcns_trinom_", \
-        startR=2, \
-        cpuNum=1):
-    if fileoutput:
-        st = datetime.datetime.\
-                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
-        filepath += str(n)+"_"
-    border = border(n)
-    
-    gen = runGenerator(border,[p-1,p], [startR,100])
-    pool = Pool(cpuNum)
-    for p,r,n,(x,pol) in pool.imap_unordered( findAnyPCN_polynom__star, \
-            ((p,r,n) for p,r in gen) ):
-        print "(",p,", ",r,") = ", pol
-        if fileoutput:
-            with open(filepath+str(r)+"_"+st,'a') as f:
-                f.write(str(p)+"\t"+str(r)
-                        +"\t"+str(pol)+"\n")
-            f.close();
-    pool.close()
-    pool.join()
-
-def findAnyPCN_polynom__star(prn):
-    return prn[0],prn[1],prn[2],findAnyPCN_polynom(*prn)
-
-
-def runGenerator(border,pRange=None,rRange=None):
-    if pRange == None:
-        p = 1
-    else:
-        p = pRange[0]
-    while p < border :
-        p = next_prime(p)
-        if pRange != None and p > pRange[1]: return
-        # consider only rs in rRange
-        if rRange != None:
-            for r in xrange(rRange[0],rRange[1]+1):
-                if p**r > border: break
-                yield p,r
-        # consider all rs
-        else:
-            r = 1
-            q = p**r
-            while q < border:
-                yield p,r
-                r += 1
-                q = p**r
-
-
-
-
 def goodBorder(n):
     n = Integer(n)
     return ceil(find_root( \
@@ -323,16 +243,26 @@ def goodBorder(n):
             1, n**4 ))
 
 
-# checks if a PCN elements exists by
-# checking the inequality
-# |P| >= |H| - 1 
-# where H is estimated
-def numericExistence(p,r,n, factors=[]):
+def numericExistence(p,r,n, do_factorization=False\
+        , known_factorization=False):
+    """
+    checks if a PCN element exists by checking the inequality
+    |P| >= |H| - 1
+    where H is approximated
+
+    p,r,n: GF with p^(r*n) elements will be considered
+    do_factorization: If True factorization of p^(r*n) will be performed
+    known_factorization: If True we'll look at yafu.thelib for the
+                         factorization
+    """
+
     p = Integer(p)
     r = Integer(r)
     n = Integer(n)
     q = p**r
     qn = q**n
+    factors = []
+    phis_to_fac = []
     
     if isRegular(p,r,1,n,1):
         return "Regular"
@@ -344,8 +274,10 @@ def numericExistence(p,r,n, factors=[]):
             - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
     notnorms_better_2 = sum([ n/k*(q**(n-k)-q**(n-2*k))+q**(n-2*k) for k in divs]) \
             - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
+    #print "--- numeric existance"
     #print "notnorms = %E"%notnorms
     #print "notnorms better = %E"%notnorms_better
+    #print "notnorms better 2 = %E"%notnorms_better_2
     #print "notnorms = ",notnorms
 
     # check approx primitives
@@ -376,6 +308,8 @@ def numericExistence(p,r,n, factors=[]):
         #print (p,r,n), "notnorms better 2 good!"
         return True
 
+    
+    all_good = True
     # calc primitives
     # using q**n-1 = prod_(d|r*n) Phi_d(p)
     Zx = PolynomialRing(ZZ,'x')
@@ -383,24 +317,29 @@ def numericExistence(p,r,n, factors=[]):
         #print "d=",d," f=",Zx.cyclotomic_polynomial(d),\
                 #" -> f(p)=",Zx.cyclotomic_polynomial(d)(p)
         phi = Zx.cyclotomic_polynomial(d)(p)
-        # test all primes already computed
-        facs = list(factors)  #first copy list
-        for s,t in facs: 
-            i = 0
-            while s.divides(phi): 
-                i += 1
-                phi /= s
-            if i > 0: 
-                #print "old factor ",s," reused!"
-                factors += [(s,i)]
-        # no more "good" factors are known, so factor phi with msieve
-        factors += factor_yafu(phi)
-        _organizeFactorization(factors)
-        #print "factors = ", factors
-        prims = 1
-        for (f,mul) in factors:
-            prims *= f**(mul-1)*(f-1)
-            if prims > notnorms: return True
+        if phi == 1: continue
+        if yafu.thelib.is_fac_easy(phi) or is_prime(phi):
+            factors += list(factor(phi))
+        elif do_factorization:
+            all_good = False
+            factors += list(factor(phi,algorithm='ecm'))
+        elif known_factorization:
+            all_good = False
+            factors += yafu.thelib.from_lib(phi)
+        else:
+            all_good = False
+            phis_to_fac += [phi]
+
+    #print "factors = ", factors
+    _organizeFactorization(factors)
+    prims = 1
+    for (f,mul) in factors:
+        prims *= f**(mul-1)*(f-1)
+
+    #print "prims = %E"%prims
+    if prims > notnorms or prims > notnorms_better or prims > notnorms_better_2:
+        return {"numEx":True,"all_good":all_good\
+                ,"facs":factors,"phis":phis_to_fac}
         #print "prims = ",prims
     #print "prims = %E"%prims
     #print "prims2 = %E"%prims2
@@ -408,7 +347,7 @@ def numericExistence(p,r,n, factors=[]):
     # check factorization
     #if prod(map(lambda pr: pr[0]**pr[1], factors)) != qn-1:
         #print "FATAL ERROR on ",(p,r,n)," with factors = ",factors
-    return False
+    return {"numEx":False,"all_good":all_good,"facs":factors,"phis":phis_to_fac}
 
 def _organizeFactorization(fac):
     prims = []
@@ -423,18 +362,6 @@ def _organizeFactorization(fac):
     fac += sorted(ret)
 
 
-def iterateNumericExistence(n):
-    border = goodBorder(n)
-    for q in itertools.count(2):
-        if q > border: return
-        fac = list(factor(q))
-        if len(fac) == 1:
-            p = fac[0][0]
-            r = fac[0][1]
-            print p,r,"\t=>",numericExistence(p,r,n)
-            if not numericExistence(p,r,n):
-                print "\t", findAnyPCN_polynom(p,r,n)[1]
-
 def primePowerGenerator(n,startq=None):
     border = goodBorder(n)
     for q in itertools.count(2):
@@ -446,73 +373,61 @@ def primePowerGenerator(n,startq=None):
             r = fac[0][1]
             yield p,r
 
-def findAnyPCN_polynom_numeric_approx__star(prn):
-    p = prn[0]
-    r = prn[1]
-    n = prn[2]
-    factors = []
-    
-    numEx = numericExistence(prn[0],prn[1],prn[2],factors)
-    if numEx != False:
-        return prn[0],prn[1],prn[2],numEx,factorization2string(factors)
-    else: 
-        return prn[0],prn[1],prn[2],\
-                findAnyPCN_polynom(prn[0],prn[1],prn[2],factors),\
-                factorization2string(factors)
-
-
 
 def findAnyPCN_numeric_approx(n, startq=None, \
         fileoutput=False, filepath="out/pcns_trinom_v1.2_", \
-        batchfile="./yafu_tmp/mustFactor",\
-        yafu_job_folder="./yafu_tmp/",\
-        cpuNum=4):
+        cpu_num=4, yafu_threads=4):
 
     st = datetime.datetime.\
             fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
     if fileoutput:
         filepath += str(n)+"_"+st
 
-    batchfile += st+".bat"
-
-    purge(yafu_job_folder,".*")
-
-    if os.path.exists(batchfile):
-        print "ERRROR: batchfile exists!"
-        return
-
 
     # process easy pairs
     pairs_not_easy = []
+    phis_to_fac = []
     gen = primePowerGenerator(n,startq)
-    for (p,r) in gen:
-        #p,r,n,pol,facs = findAnyPCN_polynom_numeric_approx__star((p,r,n))
-        numEx = numericExistence_add2batch(p,r,n,batchfile)
+
+    def numEx__star(pr):
+        p,r,pairs_not_easy,phis_to_fac = pr
+        numExTup = numericExistence(p,r,n)
+        if type(numExTup) is dict:
+            numEx = numExTup['numEx']
+            all_good = numExTup['all_good']
+            facs = numExTup['facs']
+            phis = numExTup['phis']
+        else:
+            numEx = numExTup
+            facs = ""
         print "(",p,", ",r,", ",n,") = ", numEx
         if numEx != False:
             if fileoutput:
                 with open(filepath,'a') as f:
-                    f.write(str(p)+"\t"+str(r) \
-                            +"\t"+str(numEx)+"\n")
-                f.close();
+                    f.write(str(p)+"\t"+str(r)+"\t"+str(numEx)\
+                            +"\t"+factorization2string(facs)+"\n")
+                f.close()
         else:
             pairs_not_easy += [(p,r)]
+            phis_to_fac += phis
 
-    #factor bad pairs
-    factorizations = dict()
-    pool = MyPool(cpuNum)
-    gen = line_yield(batchfile)
-    for (d,fac) in pool.imap_unordered(factor_yafu,gen):
-        print d,fac
-        factorizations[d] = fac
-    pool.close()
-    pool.join()
+    for p,r in gen:
+        numEx__star((p,r,pairs_not_easy,phis_to_fac))
 
-    # use factors
-    pool = MyPool(cpuNum)
+
+    ##factor bad pairs
+    #pool = MyPool(cpu_num)
+    #pool.imap_unordered(yafu.yafu.factor_to_lib, phis_to_fac)
+    #pool.close()
+    #pool.join()
+    for phi in phis_to_fac:
+        yafu.yafu.factor_to_lib(phi,num_threads=yafu_threads)
+
+    ## use factors
+    pool = MyPool(cpu_num)
     for p,r,n,poly,factors in \
             pool.imap_unordered(findAnyPCN_polynom__star_prn\
-            ,((p,r,n,factorizations) for p,r in pairs_not_easy)):
+            ,((p,r,n) for p,r in pairs_not_easy)):
         print "(",p,", ",r,", ",n,") = ", poly
         if fileoutput:
             with open(filepath,'a') as f:
@@ -523,127 +438,22 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     pool.close()
     pool.join()
 
-    #clean up
-    os.remove(batchfile)
+    ##clean up
+    #os.remove(batchfile)
 
 
 def findAnyPCN_polynom__star_prn(prnfac):
     p = prnfac[0]
     r = prnfac[1]
     n = prnfac[2]
-    factorizations = prnfac[3]
 
-    factors = []
-    numEx = numericExistence_known_factorizations(p,r,n\
-            ,factorizations,factors)
+    numExTup = numericExistence(p,r,n,known_factorization=True)
+    numEx = numExTup['numEx']
+    factors = numExTup['facs']
     if numEx != False:
         return p,r,n,numEx,factors
     else:
         return p,r,n,findAnyPCN_polynom(p,r,n,factors),factors
-
-
-
-
-
-def line_yield(infile):
-    with open(infile) as fin:
-        for l in fin:
-            yield l
-    fin.close()
-
-
-
-def numericExistence_add2batch(p,r,n, batchfile):
-    p = Integer(p)
-    r = Integer(r)
-    n = Integer(n)
-    q = p**r
-    qn = q**n
-    
-    if isRegular(p,r,1,n,1):
-        return "Regular"
-    
-    # calc not normals
-    divs = get_proper_subfield_divisors(p,r,n)
-    notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
-    notnorms_better = sum([ qn - (q**k-1)**Integer(n/k) for k in divs]) \
-            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
-    notnorms_better_2 = sum([ n/k*(q**(n-k)-q**(n-2*k))+q**(n-2*k) for k in divs]) \
-            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
-    
-    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
-            > notnorms:
-        return True
-    
-    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
-            > notnorms_better:
-        return True
-    
-    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
-            > notnorms_better_2:
-        return True
-
-    # calc primitives
-    # using q**n-1 = prod_(d|r*n) Phi_d(p)
-    # create batch job for yafu
-    with open(batchfile,'a') as fout:
-        Zx = PolynomialRing(ZZ,'x')
-        for d in divisors(r*n)[1:]:
-            phi = Zx.cyclotomic_polynomial(d)(p)
-            fout.write(str(phi)+"\r\n")
-    fout.close()
-
-    return False
-
-
-def numericExistence_known_factorizations(p,r,n, factorizations, retfacs):
-    p = Integer(p)
-    r = Integer(r)
-    n = Integer(n)
-    q = p**r
-    qn = q**n
-    
-    if isRegular(p,r,1,n,1):
-        return "Regular"
-    
-    # calc not normals
-    divs = get_proper_subfield_divisors(p,r,n)
-    notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
-    notnorms_better = sum([ qn - (q**k-1)**Integer(n/k) for k in divs]) \
-            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
-    notnorms_better_2 = sum([ n/k*(q**(n-k)-q**(n-2*k))+q**(n-2*k) for k in divs]) \
-            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
-    
-    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
-            > notnorms:
-        return True
-    
-    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
-            > notnorms_better:
-        return True
-    
-    if (qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)) ) \
-            > notnorms_better_2:
-        return True
-
-    # calc primitives
-    # using q**n-1 = prod_(d|r*n) Phi_d(p)
-    Zx = PolynomialRing(ZZ,'x')
-    for d in divisors(r*n)[1:]:
-        phi = Zx.cyclotomic_polynomial(d)(p)
-        retfacs += factorizations[phi]
-        _organizeFactorization(retfacs)
-        #print "factors = ", factors
-        prims = 1
-        for (f,mul) in retfacs:
-            prims *= f**(mul-1)*(f-1)
-            if prims > notnorms: return True
-
-    return False
-
-
-
-
 
 ##############################################################################
 ## Correct data in files #####################################################
@@ -917,177 +727,6 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
 ##############################################################################
 ## Factorization Methods #####################################################
 ##############################################################################
-
-# Factors n with msieve
-#
-# returns a list of tuples (p,r) representing the complete factorization of
-# n where all p's are distinct primes
-#
-# msieve must be installed and in PATH!
-def factor_msieve(n, msieve_tmp_folder="./msieve_tmp/", \
-        msieve_path="../../msieve-1.50",\
-        msieve_on_error_repeat=0):
-    #return list(factor(n,algorithm='ecm'))
-    # try ecm for 1 minute
-    queue = multiprocessing.Queue()
-    p = multiprocessing.Process(target=factorECM, args=(n,queue,))
-    p.start()
-    p.join(60)
-    if p.is_alive(): 
-        print "kill ecm"
-        p.terminate()
-        p.join()
-        if p.is_alive():
-            print "ecm still alive!"
-    else: return queue.get()
-
-
-    #print "call msieve -n -v -q "+str(n)
-    if not os.path.exists(msieve_tmp_folder):
-        os.mkdir(msieve_tmp_folder)
-    tstmp = str(Integer(time.time()*1E6))
-    #try:
-    flag = True
-    while flag:
-        tstmp = str(Integer(time.time()*1E6))
-        try:
-            os.mkdir(msieve_tmp_folder+tstmp)
-            flag = False
-        except:
-            pass
-    #s = subprocess.check_output(
-    f = open(msieve_tmp_folder+tstmp+"/out.txt","w")
-    ferr = open(msieve_tmp_folder+tstmp+"/err.txt","w")
-    p = subprocess.Popen([msieve_path,"-e","-n","-v","-q",\
-            str(n)], \
-            stdout=f,\
-            stderr=ferr,\
-            cwd=msieve_tmp_folder+tstmp)
-    while p.poll() == None:
-        time.sleep(5)
-        if os.stat(msieve_tmp_folder+tstmp+"/err.txt").st_size > 0: 
-            print "ERROR on msieve!!!"
-            print "err:"
-            with open(msieve_tmp_folder+tstmp+"/err.txt", 'r') as fin:
-                print fin.read()
-            fin.close()
-            try:
-                p.terminate()
-                p.kill()
-                p.join()
-                ferr.close()
-                f.close()
-            except:
-                pass
-            return list(factor(n,algorithm='ecm'))
-    if p.returncode != 0:
-        ferr.close()
-        f.close()
-        print "RETURNCODE msieve = ", p.returncode
-        return list(factor(n,algorithm='ecm'))
-
-    #print "on stderr:",stderr
-    f.close()
-    if p.returncode != 0:
-        try:
-            p.terminate()
-            p.join()
-        except:
-            pass
-        return list(factor(n,algorithm='ecm'))
-    #print "got ",s," from msieve -n -v -q "+str(n)
-    prime_factors = []
-    factorization = []
-    with open(msieve_tmp_folder+tstmp+"/out.txt") as f:
-        for l in f:
-            match = re.search("^p\S+: (\d+)$",l)
-            if match:
-                p = Integer(match.groups()[0])
-                if p == 1: continue
-                if p in prime_factors:
-                    idx = prime_factors.index(p)
-                    factorization[idx] = \
-                            (p,factorization[idx][1]+1)
-                else:
-                    prime_factors += [p]
-                    factorization += [(p,1)]
-    f.close()
-    purge(msieve_tmp_folder+tstmp,".*")
-    os.rmdir(msieve_tmp_folder+tstmp)
-    if factorization == []:
-        return list(factor(n,algorithm='ecm'))
-    return factorization
-
-
-def factor_yafu(n, yafu_job_folder="./yafu_tmp/", \
-        yafu_path="./yafu/yafu-1.34.3/yafu"):
-    
-    n = Integer(n)
-
-    if not os.path.exists(yafu_job_folder):
-        os.mkdir(yafu_job_folder)
-    tstmp = str(Integer(time.time()*1E6))
-    
-    with open(yafu_job_folder+tstmp+".bat","w") as f:
-        f.write("factor("+str(n)+")\r\n")
-    f.close()
-
-    with open(yafu_job_folder+tstmp+".bat") as f:
-        print f.read()
-    f.close()
-
-    #try:
-    fout = open(yafu_job_folder+tstmp+".stdout","w")
-    p = subprocess.Popen([os.path.abspath(yafu_path), \
-        "-batchfile",os.path.abspath(yafu_job_folder+tstmp+".bat"), "-v",\
-        "-logfile", os.path.abspath(yafu_job_folder+tstmp+".log"),\
-        "-session", os.path.abspath(yafu_job_folder+tstmp+".session.log"),\
-        "-qssave", os.path.abspath(yafu_job_folder+tstmp+".dat"),\
-        "-noecm"],\
-        stdout=fout,\
-        cwd=yafu_job_folder)
-    p.wait()
-    fout.close()
-
-    factorization = []
-    prime_factors = []
-    with open(yafu_job_folder+tstmp+".stdout") as f:
-        for l in f:
-            match = re.search("^[pP]\S+ = (\d+)$",l)
-            if match:
-                p = Integer(match.groups()[0])
-                if p == 1: continue
-                if p in prime_factors:
-                    idx = prime_factors.index(p)
-                    factorization[idx] = \
-                            (p,factorization[idx][1]+1)
-                else:
-                    prime_factors += [p]
-                    factorization += [(p,1)]
-    f.close()
-    purge(yafu_job_folder,tstmp+".*")
-    return n,factorization
-    #except:
-        #print "ERROR!!"
-
-
-def factor_yafu_batch(yafu_job_folder="./yafu_tmp",\
-        yafu_job="./yafu_tmp/mustFactor.bat", \
-        yafu_path="./yafu/yafu-1.34.3/yafu"):
-
-    fout = open(yafu_job_folder+"stdout","w")
-    p = subprocess.Popen([os.path.abspath(yafu_path), \
-        "-batchfile",os.path.abspath(yafu_job), "-v", "-threads","4"],\
-        stdout=fout,\
-        cwd=yafu_job_folder)
-    p.wait()
-    fout.close()
-
-
-
-def factorECM(n,queue):
-    queue.put(list(factor(n,algorithm='ecm')))
-
 
 def factorization2string(factorization):
     if factorization == []: return ""
