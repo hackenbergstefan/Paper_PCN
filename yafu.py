@@ -38,28 +38,28 @@ class Yafu:
         if not os.path.exists(self.__PATH_OF_YAFU_JOB_FOLDER):
             os.mkdir(self.__PATH_OF_YAFU_JOB_FOLDER)
         tstmp = str(long(time.time()*1E6))
+
+        os.mkdir(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
         
-        with open(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".bat","w") as f:
+        with open(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+"/job.bat","w") as f:
             f.write("factor("+str(n)+")\r\n")
         f.close()
 
         #try:
         p = subprocess.Popen([os.path.abspath(self.__PATH_OF_YAFU), \
-            "-batchfile"\
-            ,os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".bat"),\
-            "-logfile"\
-            , os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".log"),\
-            "-session"\
-            , os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".session.log"),\
-            "-qssave", os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".dat"),\
-            "-of",
-            os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".out.txt"),\
+            "-batchfile", "job.bat",\
+            #"-logfile"\
+            #, os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".log"),\
+            #"-session"\
+            #, os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".session.log"),\
+            #"-qssave", os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".dat"),\
+            "-of", "out.txt",\
             "-threads",str(num_threads)],\
-            cwd=self.__PATH_OF_YAFU_JOB_FOLDER)
+            cwd=self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
         p.wait()
 
         factorization = []
-        with open(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".out.txt") as f:
+        with open(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+"/out.txt") as f:
             for l in f:
                 match = re.search("\((\d+)\)(/.*)$",l)
                 if match:
@@ -74,7 +74,8 @@ class Yafu:
                         else:
                             factorization += [(long(split[0]),1)]
         f.close()
-        self.__purge(self.__PATH_OF_YAFU_JOB_FOLDER,tstmp+".*")
+        self.__purge(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp,".*")
+        os.rmdir(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
 
         thelib.to_lib(n,factorization)
 
@@ -144,20 +145,23 @@ class FactoringLibrary:
         if n != reduce(mul,map(lambda pr: pr[0]**pr[1], factorization)):
             raise ValueError("factorization is not a fac of n")
 
+        self.__facdict[n] = factorization
+
         with open(self.__PATH_OF_LIB_FILE,"a") as f:
             f.write(str(n)+"\t"+str(factorization)+"\r\n")
         f.close()
 
-    def from_lib(self,n):
+    def from_lib(self,n,update_lib=False):
         """
         Reads factorization of n from Library if there
 
         n: Number
+        update_lib: updates library if n first not found
 
         Returns a factorization if there, None if no was found
         """
         n = long(n)
-        if not self.__facdict.has_key(n):
+        if update_lib and not self.__facdict.has_key(n):
             self.update_lib()
         if self.__facdict.has_key(n):
             return self.__facdict[n]
