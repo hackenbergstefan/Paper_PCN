@@ -69,7 +69,7 @@ class Yafu:
                     file_n = long(match.groups()[0])
                     if file_n != n:
                         raise ValueError("Not the same n!")
-                    for pr in re.findall("/\d+",match.groups()[1]):
+                    for pr in re.findall("/[\d\^]+",match.groups()[1]):
                         split = pr[1:].split("^")
                         if len(split) > 1:
                             factorization += \
@@ -77,9 +77,12 @@ class Yafu:
                         else:
                             factorization += [(long(split[0]),1)]
         f.close()
+        if n != reduce(mul,map(lambda pr: pr[0]**pr[1], factorization)):
+            raise ValueError("factorization "+str(factorization)\
+                    +" is not a fac of n = "+str(n))
+
         self.__purge(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp,".*")
         os.rmdir(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
-
         thelib.to_lib(n,factorization)
 
         return n,factorization
@@ -146,7 +149,8 @@ class FactoringLibrary:
         n = long(n)
         # first check factorization
         if n != reduce(mul,map(lambda pr: pr[0]**pr[1], factorization)):
-            raise ValueError("factorization is not a fac of n")
+            raise ValueError("factorization "+str(factorization)\
+                    +" is not a fac of n = "+str(n))
 
         self.__facdict[n] = factorization
 
