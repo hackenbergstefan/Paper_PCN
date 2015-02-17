@@ -334,6 +334,7 @@ def numericExistence(p,r,n, do_factorization=False\
                 try:
                     alarm(5)
                     fac = list(factor(phi))
+                    cancel_alarm()
                     factors += fac
                     yafu.thelib.to_lib(phi,fac)
                 except AlarmInterrupt:
