@@ -28,7 +28,7 @@ class Yafu:
     ## Real Class Functions ##################################################
     ##########################################################################
 
-    def factor_to_lib(self,n,num_threads=1):
+    def factor_to_lib(self,n,num_threads=1, yafu_additional_args=[]):
         """
         Factors n with Yafu and writes result to library
         
@@ -57,9 +57,13 @@ class Yafu:
             #, os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".session.log"),\
             #"-qssave", os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".dat"),\
             "-of", "out.txt",\
-            "-threads",str(num_threads)],\
+            "-threads",str(num_threads)]+yafu_additional_args,\
             cwd=self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
         p.wait()
+        if p.returncode != 0:
+            # if yafu fails try deep ecm
+            return factor_to_lib(self,n,num_threads,\
+                    yafu_additional_args=["-plan","deep"])
 
         factorization = []
         with open(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+"/out.txt") as f:

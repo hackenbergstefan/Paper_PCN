@@ -432,7 +432,8 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     #pool.imap_unordered(yafu.yafu.factor_to_lib, phis_to_fac)
     #pool.close()
     #pool.join()
-    for phi in phis_to_fac:
+    for idx,phi in enumerate(phis_to_fac):
+        print "INFO:\t",idx," from ",len(phis_to_fac), " done."
         yafu.yafu.factor_to_lib(phi,num_threads=yafu_threads)
 
     ## use factors
