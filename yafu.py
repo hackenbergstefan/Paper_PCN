@@ -30,11 +30,16 @@ class Yafu:
 
     def factor_to_lib(self,n,num_threads=1, yafu_additional_args=[]):
         """
-        Factors n with Yafu and writes result to library
+        Factors n with Yafu and writes result to library.
+        Does nothing if n is already in library.
         
         n: long to be factored
         """
         n = long(n)
+
+        if not thelib.from_lib(n):
+            return n,thelib.from_lib(n)
+
         if not os.path.exists(self.__PATH_OF_YAFU_JOB_FOLDER):
             os.mkdir(self.__PATH_OF_YAFU_JOB_FOLDER)
         tstmp = str(long(time.time()*1E6))
