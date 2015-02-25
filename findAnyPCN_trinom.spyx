@@ -387,10 +387,23 @@ def primePowerGenerator(n,startq=None):
 
 def findAnyPCN_numeric_approx(n, startq=None, \
         fileoutput=False, filepath="out/pcns_trinom_v1.2_", \
-        cpu_num=4, yafu_threads=4):
+        cpu_num=4, yafu_threads=4,\
+        only_batch=False):
+    """Main routine for finding PCN polynomials or proving numerical existance.
+
+       n: degree of extension
+       startq: start with F_startq
+       fileoutput: write results to file
+       filepath: path for output file
+       cpu_num: use python multiprocessing with given number of threads
+       yafu_threads: make yafu to use given number of threads
+       only_batch: if True only a batch file with factoring jobs is created
+                   and no other fileoutput or factorization is done
+    """
 
     st = datetime.datetime.\
             fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+    batchpath = filepath+str(n)+".bat"
     if fileoutput:
         filepath += str(n)+"_"+st
 
@@ -425,6 +438,15 @@ def findAnyPCN_numeric_approx(n, startq=None, \
 
     for p,r in gen:
         numEx__star((p,r,pairs_not_easy,phis_to_fac))
+
+    with open(batchpath,'w') as fout:
+        for phi in phis_to_fac:
+            fout.write(str(phi)+"\n")
+    fout.close()
+    
+    if only_batch: return
+
+
 
 
     ##factor bad pairs

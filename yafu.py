@@ -92,6 +92,19 @@ class Yafu:
         return n,factorization
 
 
+    def batch_to_library(self,batchfile,num_threads=1,yafu_additional_args=[]):
+        """factors every line in given batchfile
+
+           batchfile: file containing a number to factor in every line
+        """
+
+        with open(batchfile) as fin:
+            for phi in fin:
+                self.factor_to_lib(phi,num_threads,yafu_additional_args)
+        fin.close()
+
+
+
     def __purge(self,dirpath, pattern):
         """Purges a dir with given pattern"""
         for f in os.listdir(dirpath):
