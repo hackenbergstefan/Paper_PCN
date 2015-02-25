@@ -207,10 +207,24 @@ class FactoringLibrary:
         Cleans the Factoringlibrary, i.e. writes the file again
         """
         self.update_lib()
+        print("number of entries: "+str(len(self.__facdict.keys())))
         with open(self.__PATH_OF_LIB_FILE,'w') as f:
             for n in self.__facdict.keys():
                 f.write(str(n)+"\t"+str(self.__facdict[n])+"\r\n")
         f.close()
+
+    def merge_lib(self,other_file):
+        """
+        Merges other_file to the FactoringLibrary
+        !!! other_file must have same format as specified here !!!
+        """
+        with open(other_file) as fin_other:
+            with open(self.__PATH_OF_LIB_FILE,'a') as fout:
+                fout.write(fin_other.read())
+            fout.close()
+        fin_other.close()
+        self.clean_lib()
+
 
 
 
