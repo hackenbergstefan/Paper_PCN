@@ -38,7 +38,7 @@ class Yafu:
         n = long(n)
 
         if thelib.from_lib(n) != None:
-            return n,thelib.from_lib(n)
+            return n,thelib.from_lib(n, update_lib=True)
 
         if not os.path.exists(self.__PATH_OF_YAFU_JOB_FOLDER):
             os.mkdir(self.__PATH_OF_YAFU_JOB_FOLDER)
