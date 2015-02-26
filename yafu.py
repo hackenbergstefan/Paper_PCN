@@ -37,8 +37,8 @@ class Yafu:
         """
         n = long(n)
 
-        if thelib.from_lib(n) != None:
-            return n,thelib.from_lib(n, update_lib=True)
+        if thelib.from_lib(n, update_lib=True) != None:
+            return n,thelib.from_lib(n)
 
         if not os.path.exists(self.__PATH_OF_YAFU_JOB_FOLDER):
             os.mkdir(self.__PATH_OF_YAFU_JOB_FOLDER)
@@ -203,7 +203,7 @@ class FactoringLibrary:
         with open(self.__PATH_OF_LIB_FILE) as f:
             for l in f:
                 split = l.split("\t")
-                self.__facdict[long(split[0])] = eval(split[1])
+                self.__facdict[long(split[0])] = eval(split[1].rstrip())
         f.close()
 
 
