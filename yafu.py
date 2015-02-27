@@ -62,7 +62,7 @@ class Yafu:
             #"-session"\
             #, os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".session.log"),\
             #"-qssave", os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".dat"),\
-            "-xover", "150",\
+            #"-xover", "150",\
             "-of", "out.txt",\
             "-threads",str(num_threads)]+yafu_additional_args,\
             cwd=self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
