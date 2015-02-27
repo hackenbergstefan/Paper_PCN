@@ -28,7 +28,8 @@ class Yafu:
     ## Real Class Functions ##################################################
     ##########################################################################
 
-    def factor_to_lib(self,n,num_threads=1, yafu_additional_args=[]):
+    def factor_to_lib(self,n,num_threads=1, yafu_additional_args=[], 
+            add_to_lib=True):
         """
         Factors n with Yafu and writes result to library.
         Does nothing if n is already in library.
@@ -61,6 +62,7 @@ class Yafu:
             #"-session"\
             #, os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".session.log"),\
             #"-qssave", os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".dat"),\
+            "-xover", "150",\
             "-of", "out.txt",\
             "-threads",str(num_threads)]+yafu_additional_args,\
             cwd=self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
@@ -92,12 +94,14 @@ class Yafu:
 
         self.__purge(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp,".*")
         os.rmdir(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
-        thelib.to_lib(n,factorization)
+        if add_to_lib:
+            thelib.to_lib(n,factorization)
 
         return n,factorization
 
 
-    def batch_to_library(self,batchfile,num_threads=1,yafu_additional_args=[]):
+    def batch_to_library(self,batchfile,num_threads=1,yafu_additional_args=[],
+            add_to_lib=True):
         """factors every line in given batchfile
 
            batchfile: file containing a number to factor in every line
@@ -105,7 +109,14 @@ class Yafu:
 
         with open(batchfile) as fin:
             for phi in fin:
-                self.factor_to_lib(phi,num_threads,yafu_additional_args)
+                n,factorization = self.factor_to_lib(\
+                        phi,\
+                        num_threads,\
+                        yafu_additional_args,\
+                        add_to_lib)
+                with open(batchfile+".done",'a') as fout_done:
+                    fout_done.write(str(n)+"\t"+str(factorization)+"\n")
+                fout_done.close()
         fin.close()
 
 
