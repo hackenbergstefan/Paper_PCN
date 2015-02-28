@@ -3,6 +3,7 @@
 import subprocess
 import os
 import time
+import datetime
 import re
 from operator import mul
 
@@ -38,6 +39,11 @@ class Yafu:
         """
         n = long(n)
 
+        print("--------------------------------------------------------------")
+        print("--- factor "+str(n))
+        print("--- start on "+datetime.datetime.strftime(\
+                datetime.datetime.now(), '%Y-%m-%d %H:%M:%S'))
+
         if thelib.from_lib(n, update_lib=True) != None:
             return n,thelib.from_lib(n)
 
@@ -46,6 +52,8 @@ class Yafu:
         tstmp = str(long(time.time()*1E6))
 
         os.mkdir(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
+        print("--- in tmpfolder "+self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
+        print("--------------------------------------------------------------")
         
         with open(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+"/job.bat","w") as f:
             f.write("factor("+str(n)+")\r\n")
@@ -106,6 +114,14 @@ class Yafu:
 
            batchfile: file containing a number to factor in every line
         """
+
+        print("==============================================================")
+        print("=== FACTORING BATCHFILE ")
+        print("=== "+batchfile)
+        print("=== starting on"+\
+                datetime.datetime.strftime(\
+                datetime.datetime.now(), '%Y-%m-%d %H:%M:%S'))
+        print("==============================================================")
 
         with open(batchfile) as fin:
             for phi in fin:
