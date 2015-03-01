@@ -15,118 +15,7 @@ import subprocess
 import yafu
 
 def findAnyPCN_polynom(p,r,n, factors=None):
-    #if r == 1:
     return findAnyPCN_polynom_prime(p,r*n,factors)
-
-    q = p**r
-    F = GF(q,'a')
-
-    E = F.extension(n,'a')
-    P = E.prime_subfield()
-
-    Px = PolynomialRing(P,'x')
-    Fx = PolynomialRing(F,'x')
-    Ex = PolynomialRing(E,'x')
-    h = Hom(F,E)[0]
-    primOrder = E.order()-1
-   
-    primitives = []
-    
-    #setup factors of x^n-1
-    divs = get_proper_subfield_divisors(p,r,n)
-    facsAll = dict();
-    prodsAll = dict();
-    fieldsAll = dict();
-    for d in divs:
-        G = F.extension(Integer(d), 'c');
-        Gx = PolynomialRing(G,'x');
-        fieldsAll[d] = G;
-        facsAll[d] = list((Gx.gen()**(n/d)-1).factor());
-        prodsAll[d] = dict();
-        for idx,(f,mult) in enumerate(facsAll[d]):
-            prodsAll[d][idx] = (Gx.gen()**(n/d)-1).quo_rem(f)[0]
-
-    # list elements of F
-    Flist = [F.zero()]
-    for i in xrange(1,r+1):
-        for idcs in itertools.combinations(xrange(0,r),i):
-            for koeffs in itertools.product(xrange(1,p),repeat=i):
-                Flist += [F(list(sum([e * Px.gen()**idcs[j] for \
-                        j,e in enumerate(reversed(koeffs))])))]
-
-    if not is_even(n):
-        FprimList = [F.zero()]
-        for i in xrange(1,r+1):
-            for idcs in itertools.combinations(xrange(0,r),i):
-                for koeffs in itertools.product(xrange(p-1,0,-1),repeat=i):
-                    FprimList += [F(list(sum([e * Px.gen()**idcs[j] for \
-                            j,e in enumerate(reversed(koeffs))])))]
-
-    firstRun = True
-    # first test trinoms!
-    for coeffT in xrange(1,q):
-        coeffTF = Flist[coeffT]
-        if firstRun:
-            for coeffN in xrange(p,q):
-                if is_even(n):
-                    coeffNF = Flist[coeffN]
-                else:
-                    coeffNF = FprimList[coeffN]
-                if coeffNF.multiplicative_order() != F.order()-1: continue
-                if not is_even(n): coeffNF *= (-1)
-                primitives += [coeffNF]
-                f = Fx.gen()**n + coeffTF*Fx.gen()**(n-1) + coeffNF
-                #print f
-                if not f.is_irreducible(): continue
-                for fac,mul in Ex(f.map_coefficients(h)).factor():
-                    if fac.degree() == 1:
-                        x = -fac[0]
-                        if x.multiplicative_order() == primOrder \
-                                and isCompletelyNormal(x,E,q,divs,\
-                                fieldsAll,facsAll,prodsAll):
-                            #print "x = ",x,"\tcn: ",isCompletelyNormal(x,F),\
-                                #"prim: ", (x.multiplicative_order() == E.order()-1)
-                            return f
-                        else: break
-                    else: break
-            firstRun = False
-        else:
-            for coeffNF in primitives:
-                f = Fx.gen()**n + coeffTF*Fx.gen()**(n-1) + coeffNF
-                #print "not first:",f
-                if not f.is_irreducible(): continue
-                for fac,mul in Ex(f.map_coefficients(h)).factor():
-                    if fac.degree() == 1:
-                        x = -fac[0]
-                        if x.multiplicative_order() == primOrder \
-                                and isCompletelyNormal(x,E,q,divs,\
-                                fieldsAll,facsAll,prodsAll):
-                            #print "x = ",x,"\tcn: ",isCompletelyNormal(x,F),\
-                                #"prim: ", (x.multiplicative_order() == E.order()-1)
-                            return f
-                        else: break
-                    else: break
-    # test rest
-    for length in xrange(1,n-1):
-        for idcs in itertools.combinations(xrange(1,n-1),length):
-            for xs in itertools.product(xrange(1,q),repeat=length+1):
-                for x in primitives:
-                    f = Fx.gen()**n + Flist[xs[0]]*Fx.gen()**(n-1) + x
-                    for j,j2 in enumerate(idcs):
-                        f += Flist[xs[length-j]] * Fx.gen() ** j2
-                    #print f
-                    if not f.is_irreducible(): continue
-                    for fac,mul in Ex(f.map_coefficients(h)).factor():
-                        if fac.degree() == 1:
-                            y = -fac[0]
-                            if y.multiplicative_order() == primOrder \
-                                    and isCompletelyNormal(y,E,q,divs,\
-                                    fieldsAll,facsAll,prodsAll):
-                                #print "x = ",y,"\tcn: ",isCompletelyNormal(y,F),\
-                                    #"prim: ", (y.multiplicative_order() == E.order()-1)
-                                return f
-                            else: break
-                        else: break
 
 # special function for testing extensions of PrimeFields
 # if factors != None assume factors is a list containing the complete
@@ -438,15 +327,14 @@ def findAnyPCN_numeric_approx(n, startq=None, \
 
     for p,r in gen:
         numEx__star((p,r,pairs_not_easy,phis_to_fac))
-
-    with open(batchpath,'w') as fout:
-        for phi in phis_to_fac:
-            fout.write(str(phi)+"\n")
-    fout.close()
+    
+    if len(phis_to_fac) > 0:
+        with open(batchpath,'w') as fout:
+            for phi in phis_to_fac:
+                fout.write(str(phi)+"\n")
+        fout.close()
     
     if only_batch: return
-
-
 
 
     ##factor bad pairs
@@ -490,55 +378,70 @@ def findAnyPCN_polynom__star_prn(prnfac):
     else:
         return p,r,n,findAnyPCN_polynom(p,r,n,factors),factors
 
+
+
 ##############################################################################
-## Correct data in files #####################################################
+## Mullen and Morgan search ##################################################
 ##############################################################################
 
 
-def checkData(inFolder="./out/"):
-    ns = []
-    for fin in glob.glob(inFolder+"pcns_trinom_*"):
-        ns += [Integer(re.compile("pcns_trinom_(\d+)").search(fin).groups()[0])]
-    ns = uniq(ns)
-    for n in ns:
-        checkFiles(glob.glob(inFolder+"pcns_trinom_"+str(n)+"_*"))
+def findAnyPCN_polynom_wrapper_mullen_level(\
+        pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
+        cpuNum=1, fileoutput=False, filepath="pcns_range_v1.2_"):
+    if fileoutput:
+        st = datetime.datetime.\
+                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+    
+    gen = runGeneratorMullen(border,pRange,rRange,nRange)
+    
+    pool = Pool(cpuNum)
+    for p,r,n,pol,fac in pool.imap_unordered(\
+                            findAnyPCN_polynom_range__star, gen):
+        print "(",p,", ",r,", ",n, ") = ", pol
+        if fileoutput:
+            with open(filepath+st,'a') as f:
+                f.write(str(p)+"\t"+str(r)+"\t"+str(n)\
+                        +"\t"+str(pol)\
+                        +"\t"+factorization2string(fac)+"\n")
+            f.close();
+    pool.close()
+    pool.join()
 
 
-def checkFiles(files, outpath="./final/pcns_"):
-    data = []
-    for fin in files:
-        n = Integer(re.compile("pcns_trinom_(\d+)").search(fin).groups()[0])
-        with open(fin) as f:
-            for line in f:
-                if all(c in string.whitespace for c in line): continue
-                regroups = re.compile("(\d+)\s+(\d+)\s+(.+)$").search(line).groups()
-                p = Integer(regroups[0])
-                r = Integer(regroups[1])
-                res = regroups[2]
-                if isRegular(p,r,1,n,1):
-                    res = "Regular"
-                data += [(p,r,res)]
-                #print "p=",p,"\t","r=",r,"\tres=",res
-    toCheck = list(primePowerGenerator(n))
-    data = sorted(data)
-    fout = outpath+str(n)+".csv"
-    with open(fout,'w') as f:
-        f.write("p,\tr,\tresult\n")
-        for p,r,res in data:
-            try:
-                toCheck.remove((p,r))
-            except:
-                print "Error on removing (p,r,n)=",(p,r,n)," on file ",files
-            f.write(str(p)+",\t"+str(r)+",\t"+str(res)+"\n")
-    f.close()
 
-    print "n = ",n," missing = ",toCheck
-    if len(toCheck) > 0:
-        fout = outpath+"missing_"+str(n)
-        with open(fout,'w') as f:
-            for p,r in toCheck:
-                f.write(str(p)+",\t"+str(r))
-        f.close()
+def runGeneratorMullen(border,pRange,rRange,nRange):
+    stopP = pRange[1]
+    startP = pRange[0]
+    startR = rRange[0]
+    stopR = rRange[1]
+    startN = nRange[0]
+    stopN = nRange[1]
+    p = startP
+    r = startR
+    n = startN
+    while True:
+        q = p**r
+        yield Integer(p),Integer(r),Integer(n)
+        n += 1
+        if n > stopN or p**(r*n) > border:
+            n = startN
+            r += 1
+            if r > stopR or p**(r*n) > border: 
+                r = startR
+                p = next_prime(p)
+                if p > stopP: return
+
+
+def findAnyPCN_polynom_range__star(prn):
+    p,r,n = prn
+    # factor n
+    Zx = PolynomialRing(ZZ,'x')
+    fac = []
+    for d in divisors(r*n):
+        fac += list(factor(Zx.cyclotomic_polynomial(d)(p), algorithm='ecm'))
+    _organizeFactorization(fac)
+    return p,r,n,findAnyPCN_polynom(p,r,n,fac),fac
+
 
 
 
@@ -800,3 +703,63 @@ class NoDaemonProcess(multiprocessing.Process):
 # because the latter is only a wrapper function, not a proper class.
 class MyPool(multiprocessing.pool.Pool):
     Process = NoDaemonProcess
+
+
+
+
+##############################################################################
+## Correct data in files #####################################################
+##############################################################################
+
+
+def checkData(inFolder="./out/", infile_prefix="pcns_trinom_v1.2_"):
+    ns = []
+    for fin in glob.glob(inFolder+infile_prefix+"*"):
+        ns += [Integer(re.compile(infile_prefix+"(\d+)").search(fin).groups()[0])]
+    ns = uniq(ns)
+    for n in ns:
+        checkFiles(glob.glob(inFolder+infile_prefix+str(n)+"_*"),\
+                infile_prefix=infile_prefix)
+
+
+def checkFiles(files, outpath="./final/pcns_",infile_prefix="pcns_trinom_v1.2_"):
+    data = []
+    if not files or len(files) == 0: return
+    for fin in files:
+        n = Integer(re.compile(infile_prefix+"(\d+)").search(fin).groups()[0])
+        with open(fin) as f:
+            for line in f:
+                if all(c in string.whitespace for c in line): continue
+                regroups = re.search("(\d+)\s+(\d+)\s+(.+)$",line)
+                if not regroups: continue
+                regroups = regroups.groups()
+                p = Integer(regroups[0])
+                r = Integer(regroups[1])
+                res = regroups[2]
+                if isRegular(p,r,1,n,1):
+                    res = "Regular"
+                data += [(p,r,res)]
+                #print "p=",p,"\t","r=",r,"\tres=",res
+    toCheck = list(primePowerGenerator(n))
+    data = sorted(data)
+    fout = outpath+str(n)+".csv"
+    with open(fout,'w') as f:
+        f.write("p,\tr,\tresult\n")
+        for p,r,res in data:
+            try:
+                toCheck.remove((p,r))
+            except:
+                pass
+                #print "Error on removing (p,r,n)=",(p,r,n)," on file ",files
+            f.write(str(p)+",\t"+str(r)+",\t"+str(res)+"\n")
+    f.close()
+
+    if os.path.exists(outpath+"missing_"+str(n)):
+        os.remove(outpath+"missing_"+str(n))
+    print "n = ",n," missing = ",toCheck
+    if len(toCheck) > 0:
+        fout = outpath+"missing_"+str(n)
+        with open(fout,'w') as f:
+            for p,r in toCheck:
+                f.write(str(p)+",\t"+str(r))
+        f.close()
