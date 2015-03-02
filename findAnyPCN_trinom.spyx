@@ -387,13 +387,14 @@ def findAnyPCN_polynom__star_prn(prnfac):
 
 def findAnyPCN__mullen_level(\
         #pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
-        pRange=[2,1000], rRange=[1,1], nRange=[2,10**70], border=10**70,\
+        pRange=[2,1000], rRange=[1,10**70], nRange=[2,10**70], border=10**70,\
+        not_condition=None,\
         cpuNum=1, fileoutput=False, filepath="pcns_range_v1.2_"):
     if fileoutput:
         st = datetime.datetime.\
                 fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
     
-    gen = runGeneratorMullen(border,pRange,rRange,nRange)
+    gen = runGeneratorMullen(border,pRange,rRange,nRange,not_condition)
     
     pool = Pool(cpuNum)
     for p,r,n,pol,fac in pool.imap_unordered(\
@@ -410,7 +411,7 @@ def findAnyPCN__mullen_level(\
 
 
 
-def runGeneratorMullen(border,pRange,rRange,nRange):
+def runGeneratorMullen(border,pRange,rRange,nRange,not_condition):
     stopP = pRange[1]
     startP = pRange[0]
     startR = rRange[0]
@@ -422,7 +423,9 @@ def runGeneratorMullen(border,pRange,rRange,nRange):
     n = startN
     while True:
         q = p**r
-        yield Integer(p),Integer(r),Integer(n)
+        if not_condition == None or \
+                not not_condition(Integer(p),Integer(r),Integer(n)):
+            yield Integer(p),Integer(r),Integer(n)
         n += 1
         if n > stopN or p**(r*n) > border:
             n = startN
