@@ -410,6 +410,41 @@ def findAnyPCN__mullen_level(\
     pool.join()
 
 
+def findAnyPCN__mullen_level__yafu(\
+        #pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
+        pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
+        #pRange=[2,1000], rRange=[1,10**70], nRange=[2,10**70], border=10**70,\
+        not_condition=None,\
+        cpuNum=1, fileoutput=False, filepath="out/pcns_range_v1.2_"):
+    if fileoutput:
+        st = datetime.datetime.\
+                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
+    
+    gen = runGeneratorMullen(border,pRange,rRange,nRange,not_condition)
+    
+    Zx = PolynomialRing(ZZ,'x')
+    for p,r,n in gen:
+        # setup factorization
+        fac = []
+        for d in divisors(r*n):
+            phi = Zx.cyclotomic_polynomial(d)(p)
+            if phi == 1: continue
+            if yafu.thelib.is_fac_easy(phi):
+                fac += list(factor(phi, algorithm='ecm'))
+            else:
+                n,yaf_fac = yafu.yafu.factor_to_lib(phi,num_threads=cpuNum)
+                fac += yaf_fac
+        _organizeFactorization(fac)
+        # find poly
+        pol = findAnyPCN_polynom(p,r,n,fac)
+        # print result and write to file
+        print "(",p,", ",r,", ",n, ") = ", pol
+        if fileoutput:
+            with open(filepath+st,'a') as f:
+                f.write(str(p)+"\t"+str(r)+"\t"+str(n)\
+                        +"\t"+str(pol)\
+                        +"\t"+factorization2string(fac)+"\n")
+            f.close();
 
 def runGeneratorMullen(border,pRange,rRange,nRange,not_condition):
     stopP = pRange[1]
@@ -418,6 +453,7 @@ def runGeneratorMullen(border,pRange,rRange,nRange,not_condition):
     stopR = rRange[1]
     startN = nRange[0]
     stopN = nRange[1]
+    if not is_prime(startP): startP = next_prime(startP)
     p = startP
     r = startR
     n = startN
@@ -767,3 +803,101 @@ def checkFiles(files, outpath="./final/pcns_",infile_prefix="pcns_trinom_v1.2_")
             for p,r in toCheck:
                 f.write(str(p)+",\t"+str(r))
         f.close()
+
+
+def checkRangeFiles(pRange=[2,10000],rRange=[1,10**80],nRange=[2,10**80],\
+        border=10**80, infileprefix="pcns_range_v1.2_",\
+        outpath="./final/range/pcns_"):
+    gen = runGeneratorMullen(border,pRange,rRange,nRange,\
+            not_condition=None)
+    values = dict()
+    for f in glob.glob(infileprefix+"*"):
+        with open(f) as fin:
+            for line in fin:
+                splits = line.split("\t")
+                p = Integer(splits[0])
+                r = Integer(splits[1])
+                n = Integer(splits[2])
+                pol = splits[3].strip()
+                fac = splits[4].strip()
+                values[(p,r,n)] = (pol,fac)
+        fin.close()
+
+    lastP = 1
+    for p,r,n in gen:
+        if not values.has_key((p,r,n)):
+            print "missing ", p,r,n
+            lastP = p
+            continue
+        if p != lastP:
+            fileout = outpath+str(p)+".csv"
+            with open(fileout,'w') as fout:
+                fout.write("p,r,n,poly,factorization\n")
+            fout.close()
+        pol,fac = values[(p,r,n)]
+
+        with open(fileout,'a') as fout:
+            fout.write(str(p)+","+str(r)+","+str(n)+","\
+                    +str(pol)+","+str(fac)+"\n")
+        fout.close()
+
+        lastP = p
+
+
+##############################################################################
+## Check final data for special conditions ###################################
+##############################################################################
+
+FINAL_PATH="./final/pcns_"
+
+def get_ever_true_borders():
+    borders = []
+    for f in glob.glob(FINAL_PATH+"*.csv"):
+        #print "process "+f
+        n = Integer(re.search("pcns_(\d+).csv",f).groups()[0])
+        with open(f) as fin:
+            whole_file = fin.read().split("\n")
+        fin.close()
+        whole_file = list(reversed(whole_file[1:])) # we do not need the title line
+        has_border = False
+        for idx, l in enumerate(whole_file):
+            if all(c in string.whitespace for c in l): continue
+            p,r,res = parse_data(l)
+            #print "parsed: \""+str(p)+"\" \""+str(r)+"\" \""+str(res)+"\""
+            if res == "Regular" or res == "True":
+                continue
+            else: 
+                #print "border found!"
+                has_border = True
+                break
+        if has_border:
+            for i in range(idx-1,0,-1):
+                p,r,res = parse_data(whole_file[i])
+                if res == "True":
+                    borders += [(n,p**r)]
+                    break
+    return borders
+
+
+def parse_data(data_line):
+    """
+    parses data where data_line must be a line in a final output file
+    returns p,r,result if result equals "True" or "Regular"
+    returns p,r,(pol,fac) otherwise
+    """
+    #print "parse "+data_line
+    data = data_line.split(",")
+    p = Integer(data[0])
+    r = Integer(data[1])
+    if len(data) == 3:
+        res = data[2]
+        return p,r,res.strip()
+    elif len(data) == 4:
+        pol = data[2]
+        fac = data[3]
+        return p,r,(pol.strip(),fac.strip())
+    else:
+        raise ValueError("Error on data line: "+str(data_line))
+
+
+

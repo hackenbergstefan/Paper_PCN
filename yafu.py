@@ -136,7 +136,6 @@ class Yafu:
         fin.close()
 
 
-
     def __purge(self,dirpath, pattern):
         """Purges a dir with given pattern"""
         for f in os.listdir(dirpath):
@@ -256,6 +255,26 @@ class FactoringLibrary:
             fout.close()
         fin_other.close()
         self.clean_lib()
+
+    def prime_list(self):
+        """
+        returns a list of all primes occuring in thelib
+        """
+        self.update_lib()
+        primlist = []
+        for n in self.__facdict:
+            primlist += map(lambda pr: pr[0], self.__facdict[n])
+        return self.__uniq(primlist)
+
+
+    def __uniq(self,seq):
+        """
+        stolen from 
+        http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
+        """
+        seen = set()
+        seen_add = seen.add
+        return [ x for x in seq if not (x in seen or seen_add(x))]
 
 
 
