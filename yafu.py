@@ -152,7 +152,7 @@ class FactoringLibrary:
     __facdict = dict()
 
     """constants"""
-    __MAX_GOOD_LEN = 20
+    __MAX_GOOD_LEN = 60
     __PATH_OF_LIB_FILE = "./factor_lib.txt"
 
     # Make private init function
