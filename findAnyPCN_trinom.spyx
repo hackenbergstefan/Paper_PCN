@@ -156,52 +156,19 @@ def numericExistence(p,r,n, do_factorization=False\
     if isRegular(p,r,1,n,1):
         return "Regular"
     
-    # calc not normals
-    divs = get_proper_subfield_divisors(p,r,n)
-    notnorms = sum([ n/k*(q**(n-k)-1) for k in divs ])
-    notnorms_better = sum([ qn - (q**k-1)**Integer(n/k) for k in divs]) \
-            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
-    notnorms_better_2 = sum([ n/k*(q**(n-k)-q**(n-2*k))+q**(n-2*k) for k in divs]) \
-            - qn + sum([ moebius(Integer(n/d))*q**d for d in divisors(n)])
-    notnorms_better_3 = q**n - sum([ euler_polynomial(q,d,n) for d in divs]) \
-            + (len(divs)-1)*sum([ moebius(n/k)*q**k for k in divisors(n)])
+    # calc approx of not normals and primitives
+    divs = get_proper_subfield_divisors__graph(p,r,n)
+    #approx_notnorms = q**n - sum([ euler_polynomial(q,d,n) for d in divs]) \
+            #+ (len(divs)-1)*sum([ moebius(n/k)*q**k for k in divisors(n)])
+    approx_notnorms = sum( [\
+        sum([ moebius(n/(d*a))*q**(d*a) for a in divisors(Integer(n/d))]) 
+        -euler_polynomial(q,d,n) for d in divs ] )
 
     approx_prims = (qn-1) / ( e**euler_gamma * \
             log(log(qn-1)) + 3/log(log(qn-1)) )
-    #print "--- numeric existance"
-    #print "notnorms = %E"%notnorms
-    #print "notnorms better = %E"%notnorms_better
-    #print "notnorms better 2 = %E"%notnorms_better_2
-    #print "notnorms better 3 = %E"%notnorms_better_3
-    #print "notnorms = ",notnorms
-
-    # check approx primitives
-    #print "approx 1 = %E"%(log(2)*(qn-1)/log(2*(qn-1)))
-    #if log(2)*(qn-1)/log(2*(qn-1)) > notnorms: 
-        #return True
     
-
-    # check approximation for euler_phi:
-    # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n ) 
-    #print "approx 2 = %E"%((qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1))))
-    #print "approx 2 = ",round((qn-1) / ( e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1))),3)
-    #if approx_prims > notnorms:
-        ###print (p,r,n),"notnorms good!"
-        #return True
     
-    if approx_prims > notnorms_better:
-        #print "notnorms = %E"%notnorms
-        #print "notnorms better = %E"%notnorms_better
-        #print "notnorms better 2 = %E"%notnorms_better_2
-        #print (p,r,n), "notnorms better good!"
-        return True
-    
-    if approx_prims > notnorms_better_2:
-        #print (p,r,n), "notnorms better 2 good!"
-        return True
-    
-    if approx_prims > notnorms_better_3:
-        #print (p,r,n), "notnorms better 3 good!"
+    if approx_prims > approx_notnorms:
         return True
 
     
@@ -254,16 +221,12 @@ def numericExistence(p,r,n, do_factorization=False\
         prims *= f**(mul-1)*(f-1)
 
     #print "prims = %E"%prims
-    if prims > notnorms or prims > notnorms_better or prims > notnorms_better_2:
+    if prims > approx_notnorms:
         return {"numEx":True,"all_good":all_good\
                 ,"facs":factors,"phis":phis_to_fac}
         #print "prims = ",prims
     #print "prims = %E"%prims
-    #print "prims2 = %E"%prims2
-        #if prims > notnorms: return True
     # check factorization
-    #if prod(map(lambda pr: pr[0]**pr[1], factors)) != qn-1:
-        #print "FATAL ERROR on ",(p,r,n)," with factors = ",factors
     return {"numEx":False,"all_good":all_good,"facs":factors,"phis":phis_to_fac}
 
 def _organizeFactorization(fac):
@@ -292,7 +255,7 @@ def primePowerGenerator(n,startq=None):
 
 
 def findAnyPCN_numeric_approx(n, startq=None, \
-        fileoutput=False, filepath="out/pcns_trinom_v1.2_", \
+        fileoutput=False, filepath="out/pcns_trinom_v1.3_", \
         cpu_num=4, yafu_threads=4,\
         only_batch=False, batchpath="out/tofactor_"):
     """Main routine for finding PCN polynomials or proving numerical existance.
@@ -346,6 +309,7 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     for p,r in gen:
         numEx__star((p,r,pairs_not_easy,phis_to_fac))
     
+    phis_to_fac = uniq(phis_to_fac)
     if len(phis_to_fac) > 0:
         with open(batchpath,'w') as fout:
             for phi in phis_to_fac:
@@ -407,7 +371,7 @@ def findAnyPCN__mullen_level(\
         #pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
         pRange=[2,1000], rRange=[1,10**70], nRange=[2,10**70], border=10**70,\
         not_condition=None,\
-        cpuNum=1, fileoutput=False, filepath="pcns_range_v1.2_"):
+        cpuNum=1, fileoutput=False, filepath="pcns_range_v1.3_"):
     if fileoutput:
         st = datetime.datetime.\
                 fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
@@ -433,7 +397,7 @@ def findAnyPCN__mullen_level__yafu(\
         pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
         #pRange=[2,1000], rRange=[1,10**70], nRange=[2,10**70], border=10**70,\
         not_condition=None,\
-        cpuNum=1, fileoutput=False, filepath="out/pcns_range_v1.2_"):
+        cpuNum=1, fileoutput=False, filepath="out/pcns_range_v1.3_"):
     if fileoutput:
         st = datetime.datetime.\
                 fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
@@ -665,6 +629,88 @@ def get_not_completely_basic_divisors(p,e,n):
     return divs
 
 
+def get_proper_subfield_divisors__graph(p,e,n):
+    p = Integer(p)
+    e = Integer(e)
+    n = Integer(n)
+    q = Integer(p**e)
+    if isRegular(p,e,1,n,1): return "isRegular"
+    divsN = divisors(n)[:-1]
+    adjfunc = (lambda i,j:\
+        i.divides(j) and is_prime(Integer(j/i)) and \
+                not Integer(j/i).divides(ordn(p_free_part(n/j,p),q**i)))
+    g = DiGraph([divsN, adjfunc])
+    #g.show()
+    verts_indegzero = filter(lambda v: \
+            g.in_degree(vertices=[v]) == [0], g.vertices())
+    #adjfunc2 = (lambda j,i:\
+        #Integer(i).divides(j) and is_prime(Integer(j/i)) and \
+        #ordn(p_free_part(n/i,p),q**i) == Integer(j/i)*ordn(p_free_part(n/j,p),q**i) )
+    #g2 = DiGraph([verts_indegzero,adjfunc2])
+    #g2.show()
+    #verts_indegzero2 = filter(lambda v: \
+            #g2.in_degree(vertices=[v]) == [0], g2.vertices())
+    #if verts_indegzero2 != verts_indegzero:
+        #print "case found on: ",(p,e,n)
+        #return g,g2
+    divsModChar = list(uniq(itertools.chain(*map(divisors,\
+        get_module_characters(decompose(p,e,n))))))
+    return filter(lambda d: d in divsModChar, verts_indegzero)
+
+
+def get_universal_essential_set(n):
+    n = Integer(n)
+    prims = prime_divisors(n)
+    prims_good = filter(lambda r: not any([ r.divides(s-1) for s in prims])\
+            , prims)
+    prims_good = dict((r,get_multiplicity(r,n)) for r in prims_good)
+    #print "prims_good", prims_good
+    divsN = divisors(n)[:-1]
+    adjfunc = (lambda i,j: 
+            i.divides(j) and (Integer(j/i) in prims_good) and\
+            ((get_multiplicity(Integer(j/i),i) == prims_good[Integer(j/i)]-1\
+             and get_multiplicity(Integer(j/i),j) == prims_good[Integer(j/i)])\
+            or
+            (get_multiplicity(Integer(j/i),i) == prims_good[Integer(j/i)]-2\
+             and get_multiplicity(Integer(j/i),j) == prims_good[Integer(j/i)]-1)\
+            ))
+    g = DiGraph([divsN, adjfunc])
+    verts_indegzero = filter(lambda v: \
+            g.in_degree(vertices=[v]) == [0], g.vertices())
+    #g.show()
+    return verts_indegzero
+
+
+def test_univ():
+    ns = [ 100, 102, 104, 105, 106, 108, 110, 111, 112, 114, 115, 116, 117, 
+            118, 119, 120, 122, 123, 124, 125, 126, 129, 130, 132, 133, 134, 135, 136, 
+            138, 140, 141, 142, 143, 144, 145, 146, 147, 148, 150, 152, 153, 154 ]
+    for n in ns:
+        univ = set(get_universal_essential_set(n))
+        for p,r in primePowerGenerator(n):
+            if p > 1000: break
+            if isRegular(p,r,1,n,1): continue
+            if not set(get_proper_subfield_divisors__graph(p,r,n)) <= univ:
+                print "ERROR on ", (p,r,n)
+
+
+
+
+
+
+def get_multiplicity(p,n):
+    """
+    returns multiplicity of p in n
+    """
+    a = 0
+    while p.divides(n):
+        a += 1
+        n = Integer(n/p)
+    return a
+
+
+
+
 # p-free part of t
 def p_free_part(t,p):
     while p.divides(t):
@@ -789,7 +835,7 @@ class MyPool(multiprocessing.pool.Pool):
 ##############################################################################
 
 
-def checkData(inFolder="./out/", infile_prefix="pcns_trinom_v1.2_"):
+def checkData(inFolder="./out/", infile_prefix="pcns_trinom_v1.3_"):
     ns = []
     for fin in glob.glob(inFolder+infile_prefix+"*"):
         ns += [Integer(re.compile(infile_prefix+"(\d+)").search(fin).groups()[0])]
@@ -799,7 +845,7 @@ def checkData(inFolder="./out/", infile_prefix="pcns_trinom_v1.2_"):
                 infile_prefix=infile_prefix)
 
 
-def checkFiles(files, outpath="./final/pcns_",infile_prefix="pcns_trinom_v1.2_"):
+def checkFiles(files, outpath="./final/pcns_",infile_prefix="pcns_trinom_v1.3_"):
     data = []
     if not files or len(files) == 0: return
     for fin in files:
@@ -843,7 +889,7 @@ def checkFiles(files, outpath="./final/pcns_",infile_prefix="pcns_trinom_v1.2_")
 
 
 def checkRangeFiles(pRange=[2,10000],rRange=[1,10**80],nRange=[2,10**80],\
-        border=10**80, infileprefix="./out/pcns_range_v1.2_",\
+        border=10**80, infileprefix="./out/pcns_range_v1.3_",\
         outpath="./final/range/pcns_"):
     gen = runGeneratorMullen(border,pRange,rRange,nRange,\
             not_condition=None)

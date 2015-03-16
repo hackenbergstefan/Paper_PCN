@@ -30,12 +30,13 @@ class Yafu:
     ##########################################################################
 
     def factor_to_lib(self,n,num_threads=1, yafu_additional_args=[], 
-            add_to_lib=True):
+            add_to_lib=True, yafu_timeout=None):
         """
         Factors n with Yafu and writes result to library.
         Does nothing if n is already in library.
         
         n: long to be factored
+        yafu_timeout: seconds for yafu timeout
         """
         n = long(n)
 
@@ -63,7 +64,12 @@ class Yafu:
                 self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+"/yafu.ini")
 
         #try:
-        p = subprocess.Popen([os.path.abspath(self.__PATH_OF_YAFU), \
+        process_timeout = []
+        if yafu_timeout != None:
+            process_timeout = ["timeout", "--preserve-status", "-k 5",\
+                    str(yafu_timeout)]
+        p = subprocess.Popen(process_timeout + \
+            [os.path.abspath(self.__PATH_OF_YAFU), \
             "-batchfile", "job.bat",\
             #"-logfile"\
             #, os.path.abspath(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+".log"),\
@@ -75,10 +81,15 @@ class Yafu:
             "-threads",str(num_threads)]+yafu_additional_args,\
             cwd=self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
         p.wait()
+        print("returncode: ",p.returncode)
         if p.returncode != 0:
-            # if yafu fails try deep ecm
-            return factor_to_lib(self,n,num_threads,\
-                    yafu_additional_args=["-plan","deep"])
+            self.__purge(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp,".*")
+            os.rmdir(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp)
+            return n,None
+        #elif p.returncode != 0:
+            ## if yafu fails try deep ecm
+            #return factor_to_lib(self,n,num_threads,\
+                    #yafu_additional_args=["-plan","deep"])
 
         factorization = []
         with open(self.__PATH_OF_YAFU_JOB_FOLDER+tstmp+"/out.txt") as f:
@@ -109,7 +120,7 @@ class Yafu:
 
 
     def batch_to_library(self,batchfile,num_threads=1,yafu_additional_args=[],
-            add_to_lib=True):
+            add_to_lib=True, yafu_timeout=5*60):
         """factors every line in given batchfile
 
            batchfile: file containing a number to factor in every line
@@ -129,10 +140,12 @@ class Yafu:
                         phi,\
                         num_threads,\
                         yafu_additional_args,\
-                        add_to_lib)
-                with open(batchfile+".done",'a') as fout_done:
-                    fout_done.write(str(n)+"\t"+str(factorization)+"\n")
-                fout_done.close()
+                        add_to_lib,
+                        yafu_timeout=yafu_timeout)
+                if factorization != None:
+                    with open(batchfile+".done",'a') as fout_done:
+                        fout_done.write(str(n)+"\t"+str(factorization)+"\n")
+                    fout_done.close()
         fin.close()
 
 
