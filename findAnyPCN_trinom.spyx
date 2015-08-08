@@ -1,4 +1,7 @@
-from sage.all import *
+from sage.all import factor, AlarmInterrupt, cancel_alarm, alarm, is_prime,ZZ,\
+    euler_gamma, PolynomialRing, moebius, e, divisors, log, var, find_root,\
+    ceil, is_even, GF
+import sage.all as sage
 import re
 import time
 from multiprocessing import Pool, Value
@@ -21,8 +24,8 @@ def findAnyPCN_polynom(p,r,n, factors=None):
 # if factors != None assume factors is a list containing the complete
 # factorization of p**n-1
 def findAnyPCN_polynom_prime(p,n,factors=None):
-    p = Integer(p)
-    n = Integer(n)
+    p = sage.Integer(p)
+    n = sage.Integer(n)
     F = GF(p)
     
     Fx = PolynomialRing(F,'x')
@@ -37,7 +40,7 @@ def findAnyPCN_polynom_prime(p,n,factors=None):
     if factors != None:
         barFactors = []
         for i,(fac,mul) in enumerate(factors):
-            barFactors += [prod( map(lambda fm: fm[0]**fm[1],
+            barFactors += [sage.prod( map(lambda fm: fm[0]**fm[1],
                     factors[:i] + [(fac,mul-1)] + factors[i+1:] ))]
 
 
@@ -47,7 +50,7 @@ def findAnyPCN_polynom_prime(p,n,factors=None):
     prodsAll = dict();
     fieldsAll = dict();
     for d in divs:
-        G = F.extension(Integer(d), 'c');
+        G = F.extension(sage.Integer(d), 'c');
         Gx = PolynomialRing(G,'x');
         fieldsAll[d] = G;
         facsAll[d] = list((Gx.gen()**(n/d)-1).factor());
@@ -125,7 +128,7 @@ def isPrimitive(x,barFactors=None):
 
 
 def goodBorder(n):
-    n = Integer(n)
+    n = sage.Integer(n)
     return ceil(find_root( \
             var('q') == \
             1/log(2)*( sum(divisors(n))-1 )*(log(2) + n*log(var('q'))), \
@@ -145,9 +148,9 @@ def numericExistence(p,r,n, do_factorization=False\
                          factorization
     """
 
-    p = Integer(p)
-    r = Integer(r)
-    n = Integer(n)
+    p = sage.Integer(p)
+    r = sage.Integer(r)
+    n = sage.Integer(n)
     q = p**r
     qn = q**n
     factors = []
@@ -161,12 +164,11 @@ def numericExistence(p,r,n, do_factorization=False\
     #approx_notnorms = q**n - sum([ euler_polynomial(q,d,n) for d in divs]) \
             #+ (len(divs)-1)*sum([ moebius(n/k)*q**k for k in divisors(n)])
     approx_notnorms = sum( [\
-        sum([ moebius(n/(d*a))*q**(d*a) for a in divisors(Integer(n/d))]) 
+        sum([ moebius(n/(d*a))*q**(d*a) for a in divisors(sage.Integer(n/d))]) 
         -euler_polynomial(q,d,n) for d in divs ] )
 
     approx_prims = (qn-1) / ( e**euler_gamma * \
             log(log(qn-1)) + 3/log(log(qn-1)) )
-    
     
     if approx_prims > approx_notnorms:
         return True
@@ -186,9 +188,9 @@ def numericExistence(p,r,n, do_factorization=False\
         # try to pre-fac phi
         for s in prime_list:
             s_count = 0
-            while Integer(s).divides(phi):
+            while sage.Integer(s).divides(phi):
                 s_count += 1
-                phi = Integer(phi/s)
+                phi = sage.Integer(phi/s)
             if s_count > 0: factors += [(s,s_count)]
 
         if yafu.thelib.is_fac_easy(phi) or is_prime(phi):
@@ -283,8 +285,12 @@ def findAnyPCN_numeric_approx(n, startq=None, \
     pairs_not_easy = []
     phis_to_fac = []
     gen = primePowerGenerator(n,startq)
+    
+    global lastTwenty
+    lastTwenty = 0
 
     def numEx__star(pr):
+        global lastTwenty
         p,r,pairs_not_easy,phis_to_fac = pr
         numExTup = numericExistence(p,r,n,prime_list=prime_list)
         if type(numExTup) is dict:
@@ -295,21 +301,26 @@ def findAnyPCN_numeric_approx(n, startq=None, \
         else:
             numEx = numExTup
             facs = ""
-        print "(",p,", ",r,", ",n,") = ", numEx
+        #print "(",p,", ",r,", ",n,") = ", numExTup
         if numEx != False:
+            lastTwenty += 1
+            if lastTwenty == 20: return True
             if fileoutput:
                 with open(filepath,'a') as f:
                     f.write(str(p)+"\t"+str(r)+"\t"+str(numEx)\
                             +"\t"+factorization2string(facs)+"\n")
                 f.close()
         else:
+            lastTwenty = 0
             pairs_not_easy += [(p,r)]
             phis_to_fac += phis
 
     for p,r in gen:
-        numEx__star((p,r,pairs_not_easy,phis_to_fac))
+        if numEx__star((p,r,pairs_not_easy,phis_to_fac)): break
     
-    phis_to_fac = uniq(phis_to_fac)
+    phis_to_fac = sage.uniq(phis_to_fac)
+    #print "phis_to_fac: ", phis_to_fac
+    print "len: ", map(lambda n: ceil(log(n,2)),phis_to_fac)
     if len(phis_to_fac) > 0:
         with open(batchpath,'w') as fout:
             for phi in phis_to_fac:
@@ -435,22 +446,22 @@ def runGeneratorMullen(border,pRange,rRange,nRange,not_condition):
     stopR = rRange[1]
     startN = nRange[0]
     stopN = nRange[1]
-    if not is_prime(startP): startP = next_prime(startP)
+    if not is_prime(startP): startP = sage.next_prime(startP)
     p = startP
     r = startR
     n = startN
     while True:
         q = p**r
         if not_condition == None or \
-                not not_condition(Integer(p),Integer(r),Integer(n)):
-            yield Integer(p),Integer(r),Integer(n)
+                not not_condition(sage.Integer(p),sage.Integer(r),sage.Integer(n)):
+            yield sage.Integer(p),sage.Integer(r),sage.Integer(n)
         n += 1
         if n > stopN or p**(r*n) > border:
             n = startN
             r += 1
             if r > stopR or p**(r*n) > border: 
                 r = startR
-                p = next_prime(p)
+                p = sage.next_prime(p)
                 if p > stopP: return
 
 
@@ -482,12 +493,12 @@ def euler_polynomial(q, d, n):
     d: degree of extension of GF(q)
     n: degree of total extension
     """
-    p = prime_divisors(q)[0]
-    tau = Integer(n/d)
-    while p.divides(tau): tau = Integer(tau/p)
+    p = sage.prime_divisors(q)[0]
+    tau = sage.Integer(n/d)
+    while p.divides(tau): tau = sage.Integer(tau/p)
 
     return q**(n-d*tau) * \
-            prod( [ (q**(d*ordn(e,q**d)) - 1)**(euler_phi(e)/ordn(e,q**d))\
+            sage.prod( [ (q**(d*ordn(e,q**d)) - 1)**(sage.euler_phi(e)/ordn(e,q**d))\
             for e in divisors(tau) ] )
 
 
@@ -505,7 +516,7 @@ def isCompletelyNormal(x,E, q, divs, fieldsAll, facsAll, prodsAll):
     #test isNormal for each divisor
     pows = dict()
     for d in divs:
-        h = Hom(fieldsAll[d],E)[0];
+        h = sage.Hom(fieldsAll[d],E)[0];
         for idx,(f,mult) in enumerate(facsAll[d]):
             g = prodsAll[d][idx];
             ret = E.zero();
@@ -532,12 +543,12 @@ def isCompletelyNormal(x,E, q, divs, fieldsAll, facsAll, prodsAll):
 
 
 def get_padic_representation(number, p):
-    number = Integer(number)
-    p = Integer(p)
+    number = sage.Integer(number)
+    p = sage.Integer(p)
     ret = []
     q = number
     while q > 0:
-        q,r = q.quo_rem(Integer(p));
+        q,r = q.quo_rem(sage.Integer(p));
         ret += [r]
     return list(reversed(ret))
 
@@ -545,11 +556,11 @@ def get_padic_representation(number, p):
 
 # computes the quadratic free part of an integer
 def squarefree(n):
-    return sage.all.prod(map(lambda x: x[0], sage.all.factor(Integer(n))))
+    return sage.prod(map(lambda x: x[0], sage.all.factor(sage.Integer(n))))
 
 # computes ordn m(q) = min{ k: q ** k = 1 mod m }
 def ordn(m,q):
-    Zn = IntegerModRing(m)
+    Zn = sage.IntegerModRing(m)
     return Zn(q).multiplicative_order()
 
 # Application of the Decomposition Theorem (Section 19)
@@ -562,12 +573,12 @@ def decompose(p,e, n):
 ## returns the module characters of a decomposition
 ## the module character of U_F,Phi_k(x^t) is k*t / nu(k)
 def get_module_characters(decomp):
-   return uniq(map(lambda l: l[0]*l[1]*l[2] / squarefree(l[0]),decomp))
+   return sage.uniq(map(lambda l: l[0]*l[1]*l[2] / squarefree(l[0]),decomp))
 
 # returns the module characters of a cyclotomic module
 # the module character of U_F,Phi_k(x^t)^pi is k*t*pi / nu(k)
 def get_module_character(k,t,pi):
-    return Integer(k*t*pi/squarefree(k))
+    return sage.Integer(k*t*pi/squarefree(k))
 
 # returns all divisors of the module characters of an extension
 # capped with the complete basic divisors
@@ -575,7 +586,7 @@ def get_module_character(k,t,pi):
 def get_proper_subfield_divisors(p,e, n):
     basList = get_not_completely_basic_divisors(p,e,n)
     return filter(lambda d: d in basList, \
-            list(uniq(itertools.chain(*map(divisors,\
+            list(sage.uniq(itertools.chain(*map(divisors,\
            get_module_characters(decompose(p,e,n)))))))
 
 
@@ -605,15 +616,15 @@ def largestDiv(p,n):
 # returns the NOT completely basic divisors of an 
 # extension n over GF(p^e)
 def get_not_completely_basic_divisors(p,e,n):
-    n = Integer(n)
-    q = Integer(p**e)
+    n = sage.Integer(n)
+    q = sage.Integer(p**e)
     divs = []
     divsN = divisors(n)
     while len(divsN) > 0:
         d = divsN.pop(0)
         #print "d=",d
         isComplBasic = True
-        for r in prime_divisors(n/d):
+        for r in sage.prime_divisors(n/d):
             #print "\tr=",r
             #print "\t\t (n/d/r)\'=",p_free_part(n/d/r,p)," ordn(_,q^d)=",\
                           #ordn(p_free_part(n/d/r,p),q**d)
@@ -630,51 +641,51 @@ def get_not_completely_basic_divisors(p,e,n):
 
 
 def get_proper_subfield_divisors__graph(p,e,n):
-    p = Integer(p)
-    e = Integer(e)
-    n = Integer(n)
-    q = Integer(p**e)
+    p = sage.Integer(p)
+    e = sage.Integer(e)
+    n = sage.Integer(n)
+    q = sage.Integer(p**e)
     if isRegular(p,e,1,n,1): return "isRegular"
     divsN = divisors(n)[:-1]
     adjfunc = (lambda i,j:\
-        i.divides(j) and is_prime(Integer(j/i)) and \
-                not Integer(j/i).divides(ordn(p_free_part(n/j,p),q**i)))
-    g = DiGraph([divsN, adjfunc])
+        i.divides(j) and is_prime(sage.Integer(j/i)) and \
+                not sage.Integer(j/i).divides(ordn(p_free_part(n/j,p),q**i)))
+    g = sage.DiGraph([divsN, adjfunc])
     #g.show()
     verts_indegzero = filter(lambda v: \
             g.in_degree(vertices=[v]) == [0], g.vertices())
     #adjfunc2 = (lambda j,i:\
-        #Integer(i).divides(j) and is_prime(Integer(j/i)) and \
-        #ordn(p_free_part(n/i,p),q**i) == Integer(j/i)*ordn(p_free_part(n/j,p),q**i) )
-    #g2 = DiGraph([verts_indegzero,adjfunc2])
+        #sage.Integer(i).divides(j) and is_prime(sage.Integer(j/i)) and \
+        #ordn(p_free_part(n/i,p),q**i) == sage.Integer(j/i)*ordn(p_free_part(n/j,p),q**i) )
+    #g2 = sage.DiGraph([verts_indegzero,adjfunc2])
     #g2.show()
     #verts_indegzero2 = filter(lambda v: \
             #g2.in_degree(vertices=[v]) == [0], g2.vertices())
     #if verts_indegzero2 != verts_indegzero:
         #print "case found on: ",(p,e,n)
         #return g,g2
-    divsModChar = list(uniq(itertools.chain(*map(divisors,\
+    divsModChar = list(sage.uniq(itertools.chain(*map(divisors,\
         get_module_characters(decompose(p,e,n))))))
     return filter(lambda d: d in divsModChar, verts_indegzero)
 
 
 def get_universal_essential_set(n):
-    n = Integer(n)
-    prims = prime_divisors(n)
+    n = sage.Integer(n)
+    prims = sage.prime_divisors(n)
     prims_good = filter(lambda r: not any([ r.divides(s-1) for s in prims])\
             , prims)
     prims_good = dict((r,get_multiplicity(r,n)) for r in prims_good)
     #print "prims_good", prims_good
     divsN = divisors(n)[:-1]
     adjfunc = (lambda i,j: 
-            i.divides(j) and (Integer(j/i) in prims_good) and\
-            ((get_multiplicity(Integer(j/i),i) == prims_good[Integer(j/i)]-1\
-             and get_multiplicity(Integer(j/i),j) == prims_good[Integer(j/i)])\
+            i.divides(j) and (sage.Integer(j/i) in prims_good) and\
+            ((get_multiplicity(sage.Integer(j/i),i) == prims_good[sage.Integer(j/i)]-1\
+             and get_multiplicity(sage.Integer(j/i),j) == prims_good[sage.Integer(j/i)])\
             or
-            (get_multiplicity(Integer(j/i),i) == prims_good[Integer(j/i)]-2\
-             and get_multiplicity(Integer(j/i),j) == prims_good[Integer(j/i)]-1)\
+            (get_multiplicity(sage.Integer(j/i),i) == prims_good[sage.Integer(j/i)]-2\
+             and get_multiplicity(sage.Integer(j/i),j) == prims_good[sage.Integer(j/i)]-1)\
             ))
-    g = DiGraph([divsN, adjfunc])
+    g = sage.DiGraph([divsN, adjfunc])
     verts_indegzero = filter(lambda v: \
             g.in_degree(vertices=[v]) == [0], g.vertices())
     #g.show()
@@ -705,7 +716,7 @@ def get_multiplicity(p,n):
     a = 0
     while p.divides(n):
         a += 1
-        n = Integer(n/p)
+        n = sage.Integer(n/p)
     return a
 
 
@@ -719,7 +730,7 @@ def p_free_part(t,p):
 
 # tests if cyclotomic module C_k,t is regular over F_p^e
 def isRegular(p,e, k,t,pi):
-    return gcd( ordn( squarefree(k*p_free_part(t,p)), p**e ),  k*t*pi) == 1
+    return sage.gcd( ordn( squarefree(k*p_free_part(t,p)), p**e ),  k*t*pi) == 1
 
 
 
@@ -766,7 +777,7 @@ def tau_order(x,F, factors=[], prods=[], sigmaPower=1):
                 try:
                     ret += g*xi;
                 except:
-                    h = Hom(F,E)[0];
+                    h = sage.Hom(F,E)[0];
                     ret += h(g)*xi;
             if ret != 0:
                 pre += [j+1]; 
@@ -838,8 +849,8 @@ class MyPool(multiprocessing.pool.Pool):
 def checkData(inFolder="./out/", infile_prefix="pcns_trinom_v1.3_"):
     ns = []
     for fin in glob.glob(inFolder+infile_prefix+"*"):
-        ns += [Integer(re.compile(infile_prefix+"(\d+)").search(fin).groups()[0])]
-    ns = uniq(ns)
+        ns += [sage.Integer(re.compile(infile_prefix+"(\d+)").search(fin).groups()[0])]
+    ns = sage.uniq(ns)
     for n in ns:
         checkFiles(glob.glob(inFolder+infile_prefix+str(n)+"_*"),\
                 infile_prefix=infile_prefix)
@@ -849,15 +860,15 @@ def checkFiles(files, outpath="./final/pcns_",infile_prefix="pcns_trinom_v1.3_")
     data = []
     if not files or len(files) == 0: return
     for fin in files:
-        n = Integer(re.compile(infile_prefix+"(\d+)").search(fin).groups()[0])
+        n = sage.Integer(re.compile(infile_prefix+"(\d+)").search(fin).groups()[0])
         with open(fin) as f:
             for line in f:
                 if all(c in string.whitespace for c in line): continue
                 regroups = re.search("(\d+)\s+(\d+)\s+(.+)$",line)
                 if not regroups: continue
                 regroups = regroups.groups()
-                p = Integer(regroups[0])
-                r = Integer(regroups[1])
+                p = sage.Integer(regroups[0])
+                r = sage.Integer(regroups[1])
                 res = regroups[2]
                 if isRegular(p,r,1,n,1):
                     res = "Regular"
@@ -898,9 +909,9 @@ def checkRangeFiles(pRange=[2,10000],rRange=[1,10**80],nRange=[2,10**80],\
         with open(f) as fin:
             for line in fin:
                 splits = line.split("\t")
-                p = Integer(splits[0])
-                r = Integer(splits[1])
-                n = Integer(splits[2])
+                p = sage.Integer(splits[0])
+                r = sage.Integer(splits[1])
+                n = sage.Integer(splits[2])
                 pol = splits[3].strip()
                 fac = splits[4].strip()
                 values[(p,r,n)] = (pol,fac)
@@ -937,7 +948,7 @@ def get_ever_true_borders():
     borders = []
     for f in glob.glob(FINAL_PATH+"*.csv"):
         #print "process "+f
-        n = Integer(re.search("pcns_(\d+).csv",f).groups()[0])
+        n = sage.Integer(re.search("pcns_(\d+).csv",f).groups()[0])
         with open(f) as fin:
             whole_file = fin.read().split("\n")
         fin.close()
@@ -970,8 +981,8 @@ def parse_data(data_line):
     """
     #print "parse "+data_line
     data = data_line.split(",")
-    p = Integer(data[0])
-    r = Integer(data[1])
+    p = sage.Integer(data[0])
+    r = sage.Integer(data[1])
     if len(data) == 3:
         res = data[2]
         return p,r,res.strip()
