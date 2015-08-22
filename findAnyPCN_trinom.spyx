@@ -16,6 +16,7 @@ import string
 import glob
 import subprocess
 import yafu
+import rangeTable
 
 def findAnyPCN_polynom(p,r,n, factors=None):
     return findAnyPCN_polynom_prime(p,r*n,factors)
@@ -136,7 +137,7 @@ def goodBorder(n):
 
 
 def numericExistence(p,r,n, do_factorization=False\
-        , known_factorization=False, prime_list=None):
+        , known_factorization=False, prime_list=None, cpuNum=1):
     """
     checks if a PCN element exists by checking the inequality
     |P| >= |H| - 1
@@ -173,7 +174,6 @@ def numericExistence(p,r,n, do_factorization=False\
     if approx_prims > approx_notnorms:
         return True
 
-    
     all_good = True
     if prime_list == None: prime_list = yafu.thelib.prime_list()
     # calc primitives
@@ -195,12 +195,12 @@ def numericExistence(p,r,n, do_factorization=False\
 
         if yafu.thelib.is_fac_easy(phi) or is_prime(phi):
             factors += list(factor(phi))
+        elif yafu.thelib.is_in_lib( phi ):
+            factors += yafu.thelib.from_lib(phi)
         elif do_factorization:
             all_good = False
+            yafu.yafu.factor_to_lib(phi, num_threads=cpuNum)
             factors += list(factor(phi,algorithm='ecm'))
-        elif known_factorization:
-            all_good = False
-            factors += yafu.thelib.from_lib(phi)
         else:
             fac = yafu.thelib.from_lib(phi)
             if fac != None:
@@ -378,91 +378,76 @@ def findAnyPCN_polynom__star_prn(prnfac):
 ##############################################################################
 
 
-def findAnyPCN__mullen_level(\
-        #pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
-        pRange=[2,1000], rRange=[1,10**70], nRange=[2,10**70], border=10**70,\
-        not_condition=None,\
-        cpuNum=1, fileoutput=False, filepath="pcns_range_v1.3_"):
-    if fileoutput:
-        st = datetime.datetime.\
-                fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
-    
-    gen = runGeneratorMullen(border,pRange,rRange,nRange,not_condition)
-    
-    pool = Pool(cpuNum)
-    for p,r,n,pol,fac in pool.imap_unordered(\
-                            findAnyPCN_polynom_range__star, gen):
-        print "(",p,", ",r,", ",n, ") = ", pol
-        if fileoutput:
-            with open(filepath+st,'a') as f:
-                f.write(str(p)+"\t"+str(r)+"\t"+str(n)\
-                        +"\t"+str(pol)\
-                        +"\t"+factorization2string(fac)+"\n")
-            f.close();
-    pool.close()
-    pool.join()
-
-
+## setup for 10^400
+## pRange=[2,97], rRange=[1,1], nRange=[2,10**400], border=10**400,\
 def findAnyPCN__mullen_level__yafu(\
         #pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
-        pRange=[2,97], rRange=[1,1], nRange=[2,10**50], border=10**50,\
+        pRange=[2,97], startN=2, border=10**50,\
         #pRange=[2,1000], rRange=[1,10**70], nRange=[2,10**70], border=10**70,\
-        not_condition=None,\
+        not_condition=lambda p,n: rangeTable.theRangeTable.isInTable(p,n) or isRegular(p,1,1,n,1),\
         cpuNum=1, fileoutput=False, filepath="out/pcns_range_v1.3_"):
     if fileoutput:
         st = datetime.datetime.\
                 fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
     
-    gen = runGeneratorMullen(border,pRange,rRange,nRange,not_condition)
-    
+    gen = runGeneratorMullen(border,pRange,startN,not_condition)
     Zx = PolynomialRing(ZZ,'x')
-    for p,r,n in gen:
-        # setup factorization
-        fac = []
-        for d in divisors(r*n):
-            phi = Zx.cyclotomic_polynomial(d)(p)
-            if phi == 1: continue
-            if is_prime(phi) or yafu.thelib.is_fac_easy(phi):
-                fac += list(factor(phi, algorithm='ecm'))
-            else:
-                yaf_fac = yafu.yafu.factor_to_lib(phi,num_threads=cpuNum)[1]
-                fac += yaf_fac
-        _organizeFactorization(fac)
-        # find poly
-        pol = findAnyPCN_polynom(p,r,n,fac)
-        # print result and write to file
-        print "(",p,", ",r,", ",n, ") = ", pol
-        if fileoutput:
-            with open(filepath+st,'a') as f:
-                f.write(str(p)+"\t"+str(r)+"\t"+str(n)\
-                        +"\t"+str(pol)\
-                        +"\t"+factorization2string(fac)+"\n")
-            f.close();
+    for p,n in gen:
+        
+        # check numeric existance
+        numExTup = numericExistence(  p, 1, n 
+                                    , do_factorization=True
+                                    , cpuNum=cpuNum)
+        if type(numExTup) is dict:
+            numEx       = numExTup['numEx']
+            all_good    = numExTup['all_good']
+            facs        = numExTup['facs']
+            phis_to_fac = numExTup['phis']
+        else:
+            numEx = numExTup
+            facs = ""
 
-def runGeneratorMullen(border,pRange,rRange,nRange,not_condition):
+        # there's nothing to do! :)
+        if numEx != False: 
+            print "(",p,", ",n, ") = ", numEx
+            rangeTable.theRangeTable.toTable( p, n, str(numEx) )
+        # find poly
+        else:
+            if len(phis_to_fac) != 0:
+                print "BAD ERROR on ", (p,n)
+            pol = findAnyPCN_polynom(p,1,n,facs)
+            # print result and write to file
+            print "(",p,", ",n, ") = ", pol
+            rangeTable.theRangeTable.toTable( p,n,pol )
+            if fileoutput:
+                with open(filepath+st,'a') as f:
+                    f.write(str(p)+"\t"+str(n)\
+                            +"\t"+str(pol)\
+                            +"\t"+factorization2string(facs)+"\n")
+                f.close();
+
+
+def runGeneratorMullen(border,pRange,startN,not_condition):
+    """
+    returns all pairs (p,n) with p**n <= border
+    looping over n, p. All pairs with not_condition(p,n) = True
+    will be ignored.
+    """
     stopP = pRange[1]
     startP = pRange[0]
-    startR = rRange[0]
-    stopR = rRange[1]
-    startN = nRange[0]
-    stopN = nRange[1]
     if not is_prime(startP): startP = sage.next_prime(startP)
     p = startP
-    r = startR
     n = startN
     while True:
-        q = p**r
         if not_condition == None or \
-                not not_condition(sage.Integer(p),sage.Integer(r),sage.Integer(n)):
-            yield sage.Integer(p),sage.Integer(r),sage.Integer(n)
-        n += 1
-        if n > stopN or p**(r*n) > border:
-            n = startN
-            r += 1
-            if r > stopR or p**(r*n) > border: 
-                r = startR
-                p = sage.next_prime(p)
-                if p > stopP: return
+                not not_condition(sage.Integer(p),sage.Integer(n)):
+            yield sage.Integer(p),sage.Integer(n)
+        p = sage.next_prime(p)
+        if p > stopP or p**n > border:
+            n += 1
+            p = startP
+            if p > stopP or p**n > border:
+               return
 
 
 def findAnyPCN_polynom_range__star(prn):
@@ -556,7 +541,7 @@ def get_padic_representation(number, p):
 
 # computes the quadratic free part of an integer
 def squarefree(n):
-    return sage.prod(map(lambda x: x[0], sage.all.factor(sage.Integer(n))))
+    return sage.prod(map(lambda x: x[0], sage.factor(sage.Integer(n))))
 
 # computes ordn m(q) = min{ k: q ** k = 1 mod m }
 def ordn(m,q):

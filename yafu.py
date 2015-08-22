@@ -165,7 +165,7 @@ class FactoringLibrary:
     __facdict = dict()
 
     """constants"""
-    __MAX_GOOD_LEN = 60
+    __MAX_GOOD_LEN = 70
     __PATH_OF_LIB_FILE = "./factor_lib.txt"
 
     # Make private init function
@@ -197,6 +197,22 @@ class FactoringLibrary:
                         factorization += [(p,1)]
         """
         if len(str(long(n))) <= self.__MAX_GOOD_LEN:
+            return True
+        return False
+    
+    def is_in_lib(self,n,update_lib=False):
+        """
+        Reads factorization of n from Library if there
+
+        n: Number
+        update_lib: updates library if n first not found
+
+        Returns a factorization if there, None if no was found
+        """
+        n = long(n)
+        if update_lib and not self.__facdict.has_key(n):
+            self.update_lib()
+        if self.__facdict.has_key(n):
             return True
         return False
 
