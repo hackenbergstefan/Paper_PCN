@@ -136,7 +136,7 @@ def goodBorder(n):
             1, n**4 ))
 
 
-def numericExistence(p,r,n, do_factorization=False\
+def numericExistence(p,r,n, do_factorization=False, factorization_timeout=None\
         , known_factorization=False, prime_list=None, cpuNum=1):
     """
     checks if a PCN element exists by checking the inequality
@@ -199,8 +199,13 @@ def numericExistence(p,r,n, do_factorization=False\
             factors += yafu.thelib.from_lib(phi)
         elif do_factorization:
             all_good = False
-            yafu.yafu.factor_to_lib(phi, num_threads=cpuNum)
-            factors += list(factor(phi,algorithm='ecm'))
+            ret = yafu.yafu.factor_to_lib(phi, num_threads=cpuNum,
+                                          yafu_timeout=factorization_timeout)
+            if ret[1] != None:
+                factors += yafu.thelib.from_lib(phi)
+            else:
+                all_good = False
+                phis_to_fac += [phi]
         else:
             fac = yafu.thelib.from_lib(phi)
             if fac != None:
@@ -385,7 +390,9 @@ def findAnyPCN__mullen_level__yafu(\
         pRange=[2,97], startN=2, border=10**50,\
         #pRange=[2,1000], rRange=[1,10**70], nRange=[2,10**70], border=10**70,\
         not_condition=lambda p,n: rangeTable.theRangeTable.isInTable(p,n) or isRegular(p,1,1,n,1),\
-        cpuNum=1, fileoutput=False, filepath="out/pcns_range_v1.3_"):
+        cpuNum=1, fileoutput=False, filepath="out/pcns_range_v1.3_%s", \
+        batchpath="out/pcns_range_v1.3_batch_%s",
+        timeout=10*60):
     if fileoutput:
         st = datetime.datetime.\
                 fromtimestamp(time.time()).strftime('%Y-%m-%d_%H:%M:%S')
@@ -397,7 +404,8 @@ def findAnyPCN__mullen_level__yafu(\
         # check numeric existance
         numExTup = numericExistence(  p, 1, n 
                                     , do_factorization=True
-                                    , cpuNum=cpuNum)
+                                    , cpuNum=cpuNum
+                                    , factorization_timeout=timeout)
         if type(numExTup) is dict:
             numEx       = numExTup['numEx']
             all_good    = numExTup['all_good']
@@ -409,22 +417,31 @@ def findAnyPCN__mullen_level__yafu(\
 
         # there's nothing to do! :)
         if numEx != False: 
-            print "(",p,", ",n, ") = ", numEx
-            rangeTable.theRangeTable.toTable( p, n, str(numEx) )
-        # find poly
+            pass
+            #print "(",p,", ",n, ") = ", numEx
+            #rangeTable.theRangeTable.toTable( p, n, str(numEx) )
+        # find poly or write remaining factorings to batchfile
         else:
             if len(phis_to_fac) != 0:
-                print "BAD ERROR on ", (p,n)
-            pol = findAnyPCN_polynom(p,1,n,facs)
-            # print result and write to file
-            print "(",p,", ",n, ") = ", pol
-            rangeTable.theRangeTable.toTable( p,n,pol )
-            if fileoutput:
-                with open(filepath+st,'a') as f:
-                    f.write(str(p)+"\t"+str(n)\
-                            +"\t"+str(pol)\
-                            +"\t"+factorization2string(facs)+"\n")
-                f.close();
+                print (p,n), " not done"
+                #print "phis_to_fac = ", phis_to_fac
+                if batchpath != None:
+                    with open(batchpath % st, 'a') as f:
+                        for phi in phis_to_fac:
+                            f.write(str(phi)+'\n')
+                    f.close()
+            else:
+                continue
+                pol = findAnyPCN_polynom(p,1,n,facs)
+                # print result and write to file
+                print "(",p,", ",n, ") = ", pol
+                rangeTable.theRangeTable.toTable( p,n,pol )
+                if fileoutput:
+                    with open(filepath % st,'a') as f:
+                        f.write(str(p)+"\t"+str(n)\
+                                +"\t"+str(pol)\
+                                +"\t"+factorization2string(facs)+"\n")
+                    f.close();
 
 
 def runGeneratorMullen(border,pRange,startN,not_condition):

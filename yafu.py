@@ -166,7 +166,9 @@ class FactoringLibrary:
 
     """constants"""
     __MAX_GOOD_LEN = 70
-    __PATH_OF_LIB_FILE = "./factor_lib.txt"
+    __PATH_OF_LIB_FILE = os.path.join(
+                             os.path.dirname(os.path.abspath(__file__)),
+                             "./factor_lib.txt")
 
     # Make private init function
     def __init__(self, token):
@@ -187,17 +189,16 @@ class FactoringLibrary:
         Checks if n can be factored easily
 
         n: Number to be factored
-                    if p == 1: continue
-                    if p in prime_factors:
-                        idx = prime_factors.index(p)
-                        factorization[idx] = \
-                                (p,factorization[idx][1]+1)
-                    else:
-                        prime_factors += [p]
-                        factorization += [(p,1)]
         """
         if len(str(long(n))) <= self.__MAX_GOOD_LEN:
             return True
+        if self.is_in_lib(n):
+            return True
+        for p in self.prime_list():
+            while n % p == 0:
+                n = n // p
+            if n == 1:
+                return True
         return False
     
     def is_in_lib(self,n,update_lib=False):
