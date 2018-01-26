@@ -6,13 +6,16 @@ Module holding classes finding PCNs on computational basis.
 
 __author__ = "Stefan Hackenberg"
 
-
+try:
+    import ff_pcn
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
 import logging
-import sage.all
 from sage.all import Integer, is_prime, euler_gamma, log, PolynomialRing, divisors, factor
-from utils import is_regular
-from finite_field_extension import FiniteFieldExtension
-from factor_lib import factorlib, Factorer
+from ff_pcn.basic_number_theory import is_regular
+from ff_pcn.finite_field_extension import FiniteFieldExtension
 
 
 class ExistanceReason(object):
@@ -193,9 +196,7 @@ class PCNExistenceChecker(object):
         return "<PCNExistenceChecker q=%d^%d n=%d>" % (self.p, self.r, self.n)
 
 
-
 if __name__ == '__main__':
-    import sys
     logging.basicConfig(level=logging.INFO)
     PCNExistenceChecker.check_until_n(int(sys.argv[1]))
     # Factorer.process_factorlib()
