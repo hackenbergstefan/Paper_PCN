@@ -80,7 +80,6 @@ class ExistanceReasonNeedFactorization(ExistanceReason):
 
 
 def check_n(n):
-    results = dict()
     for p in primes(n):
         for e in xrange(1,n):
             q = p**e
@@ -89,7 +88,6 @@ def check_n(n):
             checker = PCNExistenceChecker(p, e, q, n)
             res = results[(p,e,n)] = checker.check_existance()
             logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
-    return results
 
 
 class PCNExistenceChecker(object):
