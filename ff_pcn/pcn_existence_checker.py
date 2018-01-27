@@ -86,7 +86,7 @@ def check_n(n):
             if q > n:
                 break
             checker = PCNExistenceChecker(p, e, q, n)
-            res = results[(p,e,n)] = checker.check_existance()
+            res = checker.check_existance()
             logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
 
 
