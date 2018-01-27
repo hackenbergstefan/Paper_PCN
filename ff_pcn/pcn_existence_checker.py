@@ -85,13 +85,30 @@ class PCNExistenceChecker(object):
     """
 
     @staticmethod
+    def check_range(l, m):
+        """
+        Checks exitance of PCNs for all FiniteField extensions of degree from l to m.
+        """
+        results = dict()
+        for n in xrange(l, m):
+            for p in primes(n):
+                for e in xrange(1,n):
+                    q = p**e
+                    if q > n:
+                        break
+                    checker = PCNExistenceChecker(p, e, q, n)
+                    res = results[(p,e,n)] = checker.check_existance()
+                    logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
+        return results
+
+    @staticmethod
     def check_to(m):
         """
         Checks exitance of PCNs for all FiniteField extensions of degree to m.
         """
         results = dict()
         for n in xrange(m):
-            for p in primes(m):
+            for p in primes(n):
                 for e in xrange(1,n):
                     q = p**e
                     if q > n:
@@ -201,4 +218,4 @@ if __name__ == '__main__':
     import sys
     from ff_pcn.datastore import datastore
     logging.basicConfig(level=logging.INFO)
-    PCNExistenceChecker.check_to(int(sys.argv[1]))
+    PCNExistenceChecker.check_range(int(sys.argv[1]), int(sys.argv[2]))
