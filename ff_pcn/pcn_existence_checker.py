@@ -79,15 +79,20 @@ class ExistanceReasonNeedFactorization(ExistanceReason):
         return 'For (%d, %d, %d) factorization is needed: %s' % (self.checker.p, self.checker.e, self.checker.n, self.needed_factors)
 
 
+def check_p_n(pn):
+    p, n = pn
+    for e in xrange(1,n):
+        q = p**e
+        if q > n:
+            break
+        checker = PCNExistenceChecker(p, e, q, n)
+        res = checker.check_existance()
+        logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
+
+
 def check_n(n):
-    for p in primes(n):
-        for e in xrange(1,n):
-            q = p**e
-            if q > n:
-                break
-            checker = PCNExistenceChecker(p, e, q, n)
-            res = checker.check_existance()
-            logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool.map(check_p_n, ((p,n) for p in primes(n)))
 
 
 class PCNExistenceChecker(object):
@@ -101,8 +106,10 @@ class PCNExistenceChecker(object):
         """
         Checks exitance of PCNs for all FiniteField extensions of degree from l to m.
         """
-        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        pool.map(check_n, xrange(l,m))
+        for n in xrange(l, m):
+            check_n(n)
+        # pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        # pool.map(check_n, xrange(l,m))
 
     @staticmethod
     def check_to(m):
