@@ -153,6 +153,8 @@ class PCNExistenceChecker(object):
             logging.getLogger(__name__).debug('check_existance: |P| >= |H| approx')
             return (True, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox(self))
 
+        return (False, ExistanceReasonNeedFactorization(self))
+
         result = self._check_existance_primitives_more_equal_not_normals()
         if result is True:
             logging.getLogger(__name__).debug('check_existance: |P| >= |H|')
