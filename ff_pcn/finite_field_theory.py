@@ -11,6 +11,7 @@ import logging
 import itertools
 from sage.all import Integer, uniq, factor, DiGraph, is_prime, divisors, prime_divisors, prod, euler_phi
 from ff_pcn.basic_number_theory import largest_divisor, ordn, squarefree, p_free_part, is_regular
+from ff_pcn.datastore import store
 
 
 def decompose(p, e, n):
@@ -43,6 +44,7 @@ def module_characters(decomp):
     return uniq(map(lambda l: l[0]*l[1]*l[2] / squarefree(l[0]), decomp))
 
 
+@store('euler_polynomial')
 def euler_polynomial(q, d, n):
     """
     Returns phi_(q^d)(x^(n/d)-1) where phi_q is the polynomial analogon for the euler totient function.

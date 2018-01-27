@@ -13,7 +13,7 @@ except ImportError:
     import os
     sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
 import logging
-from sage.all import Integer, is_prime, euler_gamma, log, PolynomialRing, divisors, factor
+from sage.all import Integer, euler_gamma, log, PolynomialRing, divisors, factor, primes, ZZ
 from ff_pcn.basic_number_theory import is_regular
 from ff_pcn.finite_field_extension import FiniteFieldExtension
 
@@ -24,13 +24,13 @@ class ExistanceReason(object):
         self.checker = checker
 
     def __repr__(self):
-        return 'PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.r, self.checker.n)
+        return 'PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.e, self.checker.n)
 
 
 class ExistanceReasonRegular(ExistanceReason):
 
     def __repr__(self):
-        return '%s because (p,r,n) is regular' % ExistanceReason.__repr__(self)
+        return '%s because (p,e,n) is regular' % ExistanceReason.__repr__(self)
 
 
 class ExistanceReasonQBiggerN(ExistanceReason):
@@ -62,7 +62,7 @@ class ExistanceReasonFoundOne(ExistanceReason):
 class ExistanceReasonNotExisting(ExistanceReason):
 
     def __repr__(self):
-        return 'NO PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.r, self.checker.n)
+        return 'NO PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.e, self.checker.n)
 
 class ExistanceReasonNeedFactorization(ExistanceReason):
 
@@ -75,7 +75,7 @@ class ExistanceReasonNeedFactorization(ExistanceReason):
             factorlib.add(fac, None)
 
     def __repr__(self):
-        return 'For (%d, %d, %d) factorization is needed: %s' % (self.checker.p, self.checker.r, self.checker.n, self.needed_factors)
+        return 'For (%d, %d, %d) factorization is needed: %s' % (self.checker.p, self.checker.e, self.checker.n, self.needed_factors)
 
 
 class PCNExistenceChecker(object):
@@ -85,38 +85,38 @@ class PCNExistenceChecker(object):
     """
 
     @staticmethod
-    def check_until_n(n):
+    def check_to(m):
         """
-        Checks exitance of PCNs for all FiniteField extensions of degree n.
+        Checks exitance of PCNs for all FiniteField extensions of degree to m.
         """
         results = dict()
-        for p in xrange(n//2, n):
-            for e in xrange(1,n):
-                if not is_prime(p):
-                    continue
-                if p**e > n:
-                    continue
-                checker = PCNExistenceChecker(p, e, n)
-                res = results[(p,e,n)] = checker.check_existance()
-                logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
+        for n in xrange(m):
+            for p in primes(m):
+                for e in xrange(1,n):
+                    q = p**e
+                    if q > n:
+                        break
+                    checker = PCNExistenceChecker(p, e, q, n)
+                    res = results[(p,e,n)] = checker.check_existance()
+                    logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
         return results
 
-    def __init__(self, p, r, n):
-        self.p = Integer(p)
-        self.r = Integer(r)
-        self.n = Integer(n)
-        self.q = p**r
-        self.ff_extension = FiniteFieldExtension(self.p, self.r, self.n)
+    def __init__(self, p, e, q, n):
+        self.p = p
+        self.e = e
+        self.n = n
+        self.q = q
+        self.ff_extension = FiniteFieldExtension(self.p, self.e, self.q, self.n)
 
     def check_existance(self):
         logging.getLogger(__name__).debug('check_existance of %s', self)
         p = self.p
         q = self.q
         n = self.n
-        r = self.r
+        e = self.e
 
-        # Existance if (p,r,n) is regular
-        if is_regular(p, r, 1, n, 1):
+        # Existance if (p,e,n) is regular
+        if is_regular(p, e, 1, n, 1):
             logging.getLogger(__name__).debug('check_existance:is regular')
             return (True, ExistanceReasonRegular(self))
 
@@ -147,12 +147,12 @@ class PCNExistenceChecker(object):
         logging.getLogger(__name__).debug('_check_existance_primitives_more_equal_not_normals_approx')
         n = self.n
         q = self.q
-        r = self.r
+        e = self.e
         qn = q*n
 
         # Check approximation for euler_phi:
         # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n )
-        euler_phi_approx = (qn-1)/(r**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)))
+        euler_phi_approx = (qn-1)/(e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)))
         if euler_phi_approx > self.ff_extension.upper_border_not_normals():
             return True
 
@@ -160,15 +160,16 @@ class PCNExistenceChecker(object):
         """
         Check |P| >= |H| by calculating |P|
         """
-        r = self.r
+        e = self.e
         n = self.n
         p = self.p
-        Zx = PolynomialRing(sage.all.ZZ,'x')
+        Zx = PolynomialRing(ZZ,'x')
         factors_left = False
         factors = []
-        for d in divisors(r*n):
+        for d in divisors(e*n):
             phi = Zx.cyclotomic_polynomial(d)(p)
-            fac = factorlib.get(phi)
+            # fac = factorlib.get(phi)
+            fac = list(factor(phi))
             if fac is not None:
                 factors += fac
             else:
@@ -180,7 +181,7 @@ class PCNExistenceChecker(object):
         prims = 1
         for (f, mul) in factors:
             prims *= f**(mul-1)*(f-1)
-            if prims > self.ff_extension.upper_border_not_normals_1():
+            if prims > self.ff_extension.upper_border_not_normals():
                 return True
         return False
 
@@ -193,10 +194,11 @@ class PCNExistenceChecker(object):
 
 
     def __str__(self):
-        return "<PCNExistenceChecker q=%d^%d n=%d>" % (self.p, self.r, self.n)
+        return "<PCNExistenceChecker q=%d^%d n=%d>" % (self.p, self.e, self.n)
 
 
 if __name__ == '__main__':
+    import sys
+    from ff_pcn.datastore import datastore
     logging.basicConfig(level=logging.INFO)
-    PCNExistenceChecker.check_until_n(int(sys.argv[1]))
-    # Factorer.process_factorlib()
+    PCNExistenceChecker.check_to(int(sys.argv[1]))
