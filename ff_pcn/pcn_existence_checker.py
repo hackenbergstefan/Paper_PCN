@@ -16,6 +16,7 @@ import logging
 from sage.all import Integer, euler_gamma, log, PolynomialRing, divisors, factor, primes, ZZ
 from ff_pcn.basic_number_theory import is_regular
 from ff_pcn.finite_field_extension import FiniteFieldExtension
+import multiprocessing
 
 
 class ExistanceReason(object):
@@ -78,6 +79,19 @@ class ExistanceReasonNeedFactorization(ExistanceReason):
         return 'For (%d, %d, %d) factorization is needed: %s' % (self.checker.p, self.checker.e, self.checker.n, self.needed_factors)
 
 
+def check_n(n):
+    results = dict()
+    for p in primes(n):
+        for e in xrange(1,n):
+            q = p**e
+            if q > n:
+                break
+            checker = PCNExistenceChecker(p, e, q, n)
+            res = results[(p,e,n)] = checker.check_existance()
+            logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
+    return results
+
+
 class PCNExistenceChecker(object):
     """
     Class for checking existence of PCN element in
@@ -89,17 +103,8 @@ class PCNExistenceChecker(object):
         """
         Checks exitance of PCNs for all FiniteField extensions of degree from l to m.
         """
-        results = dict()
-        for n in xrange(l, m):
-            for p in primes(n):
-                for e in xrange(1,n):
-                    q = p**e
-                    if q > n:
-                        break
-                    checker = PCNExistenceChecker(p, e, q, n)
-                    res = results[(p,e,n)] = checker.check_existance()
-                    logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
-        return results
+        pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        pool.map(check_n, xrange(l,m))
 
     @staticmethod
     def check_to(m):
