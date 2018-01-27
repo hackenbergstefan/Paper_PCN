@@ -44,7 +44,6 @@ def module_characters(decomp):
     return uniq(map(lambda l: l[0]*l[1]*l[2] / squarefree(l[0]), decomp))
 
 
-@store('euler_polynomial')
 def euler_polynomial(q, d, n):
     """
     Returns phi_(q^d)(x^(n/d)-1) where phi_q is the polynomial analogon for the euler totient function.

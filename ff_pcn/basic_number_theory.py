@@ -27,7 +27,6 @@ def squarefree(n):
     return prod(map(lambda x: x[0], factor(Integer(n))))
 
 
-@store('ordn')
 def ordn(m, q):
     """
     Computes ordn m(q) = min{ k: q ** k = 1 mod m }
