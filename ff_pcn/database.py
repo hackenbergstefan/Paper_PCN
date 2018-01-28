@@ -45,20 +45,20 @@ class Database(object):
 
     def check_and_cleanup_file(self, fil):
         from ff_pcn.pcn_existence_checker import qs_to_check
-        logging.debug('check_file %s', fil)
+        logging.info('check_and_cleanup_file %s', fil)
         n = long(self.re_filename.match(os.path.basename(fil)).group('n'))
         qs = qs_to_check(n)
         content = open(fil, 'r').read()
         lines = content.splitlines()
 
         if len(lines) < len(qs):
-            logging.critical('check_file %s: too less lines %d < %d', fil, len(lines), len(qs))
+            logging.critical('too less lines %d < %d', len(lines), len(qs))
 
         results = []
         for p, e in qs:
             match = re.search(r'^\(%d, %d,? %d\)(.*?)$' % (p, e, n), content, re.MULTILINE)
             if not match:
-                logging.critical('%s (%d, %d, %d) missing', fil, p, e, n)
+                logging.critical('(%d, %d, %d) missing', p, e, n)
             logging.debug('(%d, %d, %d) => %s', p, e, n, match.group(0))
             results += [
                 (p, e, '(%d, %d, %d)%s' % (p, e, n, match.group(1)))
@@ -68,10 +68,16 @@ class Database(object):
         with open(fil, 'w') as fp:
             fp.write('\n'.join(r[2] for r in results))
 
+    def missing_files(self, m):
+        for n in xrange(1, m):
+            if not os.path.exists(os.path.join(self.result_folder, 'ex_%d.txt' % n)):
+                logging.critical('missing %d', n)
+
 
 database = Database()
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.CRITICAL)
+    logging.basicConfig(level=logging.INFO)
+    database.missing_files(int(sys.argv[1]))
     database.check_and_cleanup()
