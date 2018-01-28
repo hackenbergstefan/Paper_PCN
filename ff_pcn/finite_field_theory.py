@@ -44,6 +44,7 @@ def module_characters(decomp):
     return uniq(map(lambda l: l[0]*l[1]*l[2] / squarefree(l[0]), decomp))
 
 
+@store('euler_polynomial')
 def euler_polynomial(q, d, n):
     """
     Returns phi_(q^d)(x^(n/d)-1) where phi_q is the polynomial analogon for the euler totient function.
@@ -53,13 +54,17 @@ def euler_polynomial(q, d, n):
     :param n: Degree of total extension.
     """
     p = prime_divisors(q)[0]
-    tau = p_free_part(Integer(n/d), p)
+    tau = p_free_part(n//d, p)
+
+    qd = q**d
+    divs_tau = divisors(tau)
+    ordne = {e: ordn(e, qd) for e in divs_tau}
 
     return q**(n-d*tau) * \
-          prod([
-              (q**(d*ordn(e, q**d)) - 1)**(euler_phi(e)/ordn(e, q**d))
+          prod((
+              (qd**ordne[e] - 1)**(euler_phi(e)//ordne[e])
               for e in divisors(tau)
-          ])
+          ))
 
 
 def universal_essential_set(n):
