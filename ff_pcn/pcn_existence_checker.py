@@ -45,6 +45,20 @@ def check_n(n):
         check_p_n((p, n))
 
 
+def qs_to_check(n):
+    """
+    Returns a list of qs which has to be checked for given n.
+    """
+    qs = []
+    for p in primes(n):
+        for e in xrange(1,n):
+            q = p**e
+            if q > n:
+                break
+            qs += [(p,e)]
+    return qs
+
+
 class PCNExistenceChecker(object):
     """
     Class for checking existence of PCN element in

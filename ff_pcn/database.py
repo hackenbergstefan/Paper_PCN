@@ -4,7 +4,16 @@
 Database storing results.
 """
 
+__author__ = "Stefan Hackenberg"
+
+try:
+    import ff_pcn
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
 import os
+import re
 import logging
 from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonNeedFactorization
 
@@ -13,6 +22,8 @@ RESULT_FOLDER = os.path.abspath(os.path.join(__file__, '../../result/'))
 
 
 class Database(object):
+
+    re_filename = re.compile(r'ex_(?P<n>\d*)\.txt')
 
     def __init__(self, result_folder=RESULT_FOLDER):
         self.result_folder = result_folder
@@ -25,6 +36,42 @@ class Database(object):
         elif isinstance(result, ExistanceReasonNeedFactorization):
             resstring = 'Factorization needed'
         with open(os.path.join(self.result_folder, 'ex_%d.txt' % n), 'a') as fp:
-            fp.write('(%d, %d %d) => %s\n' % (p, e, n, resstring))
+            fp.write('(%d, %d, %d) => %s\n' % (p, e, n, resstring))
+
+    def check_and_cleanup(self):
+        for fil in os.listdir(self.result_folder):
+            if self.re_filename.match(fil):
+                self.check_and_cleanup_file(os.path.join(self.result_folder, fil))
+
+    def check_and_cleanup_file(self, fil):
+        from ff_pcn.pcn_existence_checker import qs_to_check
+        logging.debug('check_file %s', fil)
+        n = long(self.re_filename.match(os.path.basename(fil)).group('n'))
+        qs = qs_to_check(n)
+        content = open(fil, 'r').read()
+        lines = content.splitlines()
+
+        if len(lines) < len(qs):
+            logging.critical('check_file %s: too less lines %d < %d', fil, len(lines), len(qs))
+
+        results = []
+        for p, e in qs:
+            match = re.search(r'^\(%d, %d,? %d\)(.*?)$' % (p, e, n), content, re.MULTILINE)
+            if not match:
+                logging.critical('%s (%d, %d, %d) missing', fil, p, e, n)
+            logging.debug('(%d, %d, %d) => %s', p, e, n, match.group(0))
+            results += [
+                (p, e, '(%d, %d, %d)%s' % (p, e, n, match.group(1)))
+            ]
+
+        results = sorted(results)
+        with open(fil, 'w') as fp:
+            fp.write('\n'.join(r[2] for r in results))
+
 
 database = Database()
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.CRITICAL)
+    database.check_and_cleanup()
