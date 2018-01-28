@@ -39,7 +39,10 @@ class Database(object):
             fp.write('(%d, %d, %d) => %s\n' % (p, e, n, resstring))
 
     def check_and_cleanup(self):
-        for fil in sorted(os.listdir(self.result_folder), reverse=True):
+        for fil in sorted(
+                os.listdir(self.result_folder),
+                key=lambda fil: int(self.re_filename.match(fil).group('n')),
+                reverse=True):
             if self.re_filename.match(fil):
                 self.check_and_cleanup_file(os.path.join(self.result_folder, fil))
 
