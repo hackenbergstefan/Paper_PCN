@@ -1,0 +1,4 @@
+(2, 1, 7) => regular
+(2, 2, 7) => regular
+(3, 1, 7) => regular
+(5, 1, 7) => regular

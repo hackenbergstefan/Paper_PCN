@@ -1,0 +1,8 @@
+(2, 1, 13) => regular
+(2, 2, 13) => regular
+(2, 3, 13) => regular
+(3, 1, 13) => regular
+(3, 2, 13) => regular
+(5, 1, 13) => regular
+(7, 1, 13) => regular
+(11, 1, 13) => regular
