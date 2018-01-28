@@ -7,9 +7,6 @@ Module coding basic number theoretical applications.
 __author__ = "Stefan Hackenberg"
 
 
-from ff_pcn.datastore import store
-
-
 from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, euler_phi, prod
 
 
@@ -31,11 +28,14 @@ def ordn(m, q):
     """
     Computes ordn m(q) = min{ k: q ** k = 1 mod m }
     """
-    if m == 1:
+    if m == 1 or q == 1:
         return 1
+
+    q_ = q % m
     for i in xrange(1, m+1):
-        if (q**i) % m == 1:
+        if q_ == 1:
             return i
+        q_ = (q_ * q) % m
 
 
 def p_free_part(t, p):

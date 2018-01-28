@@ -72,8 +72,6 @@ class ExistanceReasonNeedFactorization(ExistanceReason):
         self.needed_factors = needed_factors
         if not isinstance(needed_factors, list):
             needed_factors = [needed_factors]
-        for fac in needed_factors:
-            factorlib.add(fac, None)
 
     def __repr__(self):
         return 'For (%d, %d, %d) factorization is needed: %s' % (self.checker.p, self.checker.e, self.checker.n, self.needed_factors)
@@ -88,11 +86,18 @@ def check_p_n(pn):
         checker = PCNExistenceChecker(p, e, q, n)
         res = checker.check_existance()
         logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
+        del res
+        del checker
+
+
+def check_n_multiprocessing(n):
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool.map(check_p_n, ((p,n) for p in primes(n)))
 
 
 def check_n(n):
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    pool.map(check_p_n, ((p,n) for p in primes(n)))
+    for p in primes(n):
+        check_p_n((p, n))
 
 
 class PCNExistenceChecker(object):
@@ -160,18 +165,6 @@ class PCNExistenceChecker(object):
 
         return (False, ExistanceReasonNeedFactorization(self))
 
-        result = self._check_existance_primitives_more_equal_not_normals()
-        if result is True:
-            logging.getLogger(__name__).debug('check_existance: |P| >= |H|')
-            return (True, ExistanceReasonPrimitivesMoreEqualNotNormals(self))
-
-        result = self._check_existance_find_one()
-        if result is not None:
-            logging.getLogger(__name__).debug('check_existance: Explicitly found %s', result)
-            return True, ExistanceReasonFoundOne(self, result)
-
-        return False, ExistanceReasonNotExisting(self)
-
     def _check_existance_primitives_more_equal_not_normals_approx(self):
         logging.getLogger(__name__).debug('_check_existance_primitives_more_equal_not_normals_approx')
         n = self.n
@@ -184,43 +177,6 @@ class PCNExistenceChecker(object):
         euler_phi_approx = (qn-1)/(e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)))
         if euler_phi_approx > self.ff_extension.upper_border_not_normals():
             return True
-
-    def _check_existance_primitives_more_equal_not_normals(self):
-        """
-        Check |P| >= |H| by calculating |P|
-        """
-        e = self.e
-        n = self.n
-        p = self.p
-        Zx = PolynomialRing(ZZ,'x')
-        factors_left = False
-        factors = []
-        for d in divisors(e*n):
-            phi = Zx.cyclotomic_polynomial(d)(p)
-            # fac = factorlib.get(phi)
-            fac = list(factor(phi))
-            if fac is not None:
-                factors += fac
-            else:
-                logging.getLogger(__name__).debug('_check_existance_primitives_more_equal_not_normals: need factorization of: %d', phi)
-                factorlib.add(phi, None)
-                factors_left = True
-        if factors_left:
-            return False
-        prims = 1
-        for (f, mul) in factors:
-            prims *= f**(mul-1)*(f-1)
-            if prims > self.ff_extension.upper_border_not_normals():
-                return True
-        return False
-
-    def _check_existance_find_one(self):
-        """
-        Prove existance of PCN element by finding one.
-        """
-        if factorlib.get(self.q**self.n - 1) is not None:
-            return self.ff_extension.any_pcn()
-
 
     def __str__(self):
         return "<PCNExistenceChecker q=%d^%d n=%d>" % (self.p, self.e, self.n)
