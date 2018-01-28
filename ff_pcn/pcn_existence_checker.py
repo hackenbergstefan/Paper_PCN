@@ -13,68 +13,12 @@ except ImportError:
     import os
     sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
 import logging
+import multiprocessing
 from sage.all import Integer, euler_gamma, log, PolynomialRing, divisors, factor, primes, ZZ
+from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonNeedFactorization
 from ff_pcn.basic_number_theory import is_regular
 from ff_pcn.finite_field_extension import FiniteFieldExtension
-import multiprocessing
-
-
-class ExistanceReason(object):
-
-    def __init__(self, checker):
-        self.checker = checker
-
-    def __repr__(self):
-        return 'PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.e, self.checker.n)
-
-
-class ExistanceReasonRegular(ExistanceReason):
-
-    def __repr__(self):
-        return '%s because (p,e,n) is regular' % ExistanceReason.__repr__(self)
-
-
-class ExistanceReasonQBiggerN(ExistanceReason):
-
-    def __repr__(self):
-        return '%s because q > n' % ExistanceReason.__repr__(self)
-
-
-class ExistanceReasonPrimitivesMoreEqualNotNormalsApprox(ExistanceReason):
-
-    def __repr__(self):
-        return '%s |P| >= |H| by approximation' % ExistanceReason.__repr__(self)
-
-
-class ExistanceReasonPrimitivesMoreEqualNotNormals(ExistanceReason):
-
-    def __repr__(self):
-        return '%s |P| >= |H|' % ExistanceReason.__repr__(self)
-
-class ExistanceReasonFoundOne(ExistanceReason):
-
-    def __init__(self, checker, f):
-        super(ExistanceReasonFoundOne, self).__init__(checker)
-        self.f = f
-
-    def __repr__(self):
-        return '%s found %s' % (ExistanceReason.__repr__(self), self.f)
-
-class ExistanceReasonNotExisting(ExistanceReason):
-
-    def __repr__(self):
-        return 'NO PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.e, self.checker.n)
-
-class ExistanceReasonNeedFactorization(ExistanceReason):
-
-    def __init__(self, checker, needed_factors):
-        super(ExistanceReasonNeedFactorization, self).__init__(checker)
-        self.needed_factors = needed_factors
-        if not isinstance(needed_factors, list):
-            needed_factors = [needed_factors]
-
-    def __repr__(self):
-        return 'For (%d, %d, %d) factorization is needed: %s' % (self.checker.p, self.checker.e, self.checker.n, self.needed_factors)
+from ff_pcn.database import database
 
 
 def check_p_n(pn):
@@ -86,6 +30,7 @@ def check_p_n(pn):
         checker = PCNExistenceChecker(p, e, q, n)
         res = checker.check_existance()
         logging.getLogger(__name__).info('check_until_n of (%d, %d, %d) => %s', p, e, n, res)
+        database.add(p, e, n, res[1])
         del res
         del checker
 
@@ -111,10 +56,10 @@ class PCNExistenceChecker(object):
         """
         Checks exitance of PCNs for all FiniteField extensions of degree from l to m.
         """
-        for n in xrange(l, m):
-            check_n(n)
-        # pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        # pool.map(check_n, xrange(l,m))
+        # for n in xrange(l, m):
+        #     check_n(n)
+        pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        pool.map(check_n, xrange(l,m))
 
     @staticmethod
     def check_to(m):
