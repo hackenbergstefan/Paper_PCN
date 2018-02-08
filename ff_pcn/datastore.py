@@ -21,7 +21,7 @@ class DataStore(object):
         key = str(key)
         if not section in self.datastore:
             self.datastore[section] = dict()
-        if len(self.datastore[section].values()) > 1e6:
+        if len(self.datastore[section].values()) > 1e3:
             del self.datastore[section]
             self.datastore[section] = dict()
         self.datastore[section][key] = value

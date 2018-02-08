@@ -14,11 +14,12 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
 import logging
 import multiprocessing
-from sage.all import Integer, euler_gamma, log, PolynomialRing, divisors, factor, primes, ZZ
-from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonNeedFactorization
-from ff_pcn.basic_number_theory import is_regular
+from sage.all import Integer, euler_gamma, log, PolynomialRing, divisors, factor, primes, ZZ, prod, euler_phi
+from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonPrimitivesMoreEqualNotNormals, ExistanceReasonNeedFactorization, ExistanceReasonFoundOne, ExistanceReasonNotExisting
+from ff_pcn.basic_number_theory import is_regular, factor_with_euler_phi
 from ff_pcn.finite_field_extension import FiniteFieldExtension
 from ff_pcn.database import database
+from ff_pcn.factorer import factorer
 
 
 def check_p_n(pn):
@@ -70,10 +71,10 @@ class PCNExistenceChecker(object):
         """
         Checks exitance of PCNs for all FiniteField extensions of degree from l to m.
         """
-        # for n in xrange(l, m):
-        #     check_n(n)
-        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        pool.map(check_n, xrange(l,m))
+        for n in xrange(l, m):
+            check_n(n)
+        # pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        # pool.map(check_n, xrange(l,m))
 
     @staticmethod
     def check_to(m):
@@ -122,20 +123,53 @@ class PCNExistenceChecker(object):
             logging.getLogger(__name__).debug('check_existance: |P| >= |H| approx')
             return (True, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox(self))
 
-        return (False, ExistanceReasonNeedFactorization(self))
+        self.factorization = self._factor()
+        if self.factorization is None:
+            return (False, ExistanceReasonNeedFactorization(self))
+
+        result = self._check_existance_primitives_more_equal_not_normals()
+        if result is True:
+            logging.getLogger(__name__).debug('check_existance: |P| >= |H|')
+            return (True, ExistanceReasonPrimitivesMoreEqualNotNormals(self))
+
+        y = self._check_existance_find_one()
+        logging.getLogger(__name__).debug('check_existance: Found one: %s', y)
+        return (True, ExistanceReasonFoundOne(self, y))
 
     def _check_existance_primitives_more_equal_not_normals_approx(self):
         logging.getLogger(__name__).debug('_check_existance_primitives_more_equal_not_normals_approx')
         n = self.n
         q = self.q
         e = self.e
-        qn = q*n
+        qn = q**n
 
         # Check approximation for euler_phi:
         # euler_phi(n) >= n/( e^gamma * loglog n + 3/loglog n )
         euler_phi_approx = (qn-1)/(e**euler_gamma * log(log(qn-1)) + 3/log(log(qn-1)))
         if euler_phi_approx > self.ff_extension.upper_border_not_normals():
             return True
+
+    def _factor(self):
+        logging.getLogger(__name__).debug('_factor')
+        # Factor q**n-1 = prod_(d|e*n) Phi_d(p)
+        n = self.n
+        p = self.p
+        e = self.e
+        return factor_with_euler_phi(p, e*n)
+
+    def _check_existance_primitives_more_equal_not_normals(self):
+        logging.getLogger(__name__).debug('_check_existance_primitives_more_equal_not_normals')
+        n = self.n
+        q = self.q
+        e = self.e
+        qn = q**n
+
+        phi = prod((euler_phi(p)**r for p,r in self.factorization))
+        if phi > self.ff_extension.upper_border_not_normals():
+            return True
+
+    def _check_existance_find_one(self):
+        return self.ff_extension.pcn_element(self.factorization)
 
     def __str__(self):
         return "<PCNExistenceChecker q=%d^%d n=%d>" % (self.p, self.e, self.n)

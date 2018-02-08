@@ -15,7 +15,7 @@ except ImportError:
 import os
 import re
 import logging
-from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonNeedFactorization
+from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonPrimitivesMoreEqualNotNormals, ExistanceReasonNeedFactorization, ExistanceReasonNotExisting
 
 
 RESULT_FOLDER = os.path.abspath(os.path.join(__file__, '../../result/'))
@@ -29,12 +29,17 @@ class Database(object):
         self.result_folder = result_folder
 
     def add(self, p, e, n, result):
+        resstring = ''
         if isinstance(result, ExistanceReasonRegular):
             resstring = 'regular'
         elif isinstance(result, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox):
             resstring = 'L > U'
+        elif isinstance(result, ExistanceReasonPrimitivesMoreEqualNotNormals):
+            resstring = '|P| > |H|'
         elif isinstance(result, ExistanceReasonNeedFactorization):
             resstring = 'Factorization needed'
+        elif isinstance(result, ExistanceReasonNotExisting):
+            resstring = 'not existing'
         with open(os.path.join(self.result_folder, 'ex_%d.txt' % n), 'a') as fp:
             fp.write('(%d, %d, %d) => %s\n' % (p, e, n, resstring))
 

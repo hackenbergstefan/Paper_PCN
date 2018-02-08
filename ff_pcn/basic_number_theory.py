@@ -7,7 +7,8 @@ Module coding basic number theoretical applications.
 __author__ = "Stefan Hackenberg"
 
 
-from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, euler_phi, prod
+from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, euler_phi, prod, ZZ
+from factorer import factorer
 
 
 def is_regular(p, e, k, t, pi):
@@ -63,3 +64,25 @@ def largest_divisor(p, n):
     Returns largest power of p dividing n.
     """
     return p**multiplicity(p, n)
+
+
+def factor_with_euler_phi(p, m):
+    """
+    Returns factorization of p**m-1 with p prime by using
+    p**m-1 = prod_(d|m) Phi_d(p).
+    """
+    Zx = PolynomialRing(ZZ, 'x')
+    factors = []
+    missing_factors = False
+    for d in divisors(m):
+        phi = Zx.cyclotomic_polynomial(d)(p)
+        if phi == 1:
+            continue
+        facs = factorer.get(phi)
+        factors += facs or []
+        if facs is None:
+            factorer.add(phi)
+            missing_factors = True
+    if missing_factors is False:
+        return factors
+    return None

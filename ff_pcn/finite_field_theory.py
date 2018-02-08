@@ -12,6 +12,7 @@ import itertools
 from sage.all import Integer, uniq, factor, DiGraph, is_prime, divisors, prime_divisors, prod, euler_phi
 from ff_pcn.basic_number_theory import largest_divisor, ordn, squarefree, p_free_part, is_regular
 from ff_pcn.datastore import store
+from ff_pcn.factorer import factorer
 
 
 def decompose(p, e, n):
@@ -105,3 +106,16 @@ def essential_divisors(p, e, n):
     essential_divs = filter(lambda d: d in divsModChar, verts_indegzero)
     logging.getLogger(__name__).debug('essential_divisors (%d, %d, %d) => %s', p, e, n, essential_divs)
     return essential_divs
+
+
+def primitive_element(E, facs):
+    """
+    Returns a primitive element of E, for given factorization of |E|-1
+    """
+    qn = E.order() - 1
+    cofacs = [qn//p for p, mul in facs]
+    for y in E:
+        if y in [0, 1]:
+            continue
+        if all((y**co) != 1 for co in cofacs):
+            return y
