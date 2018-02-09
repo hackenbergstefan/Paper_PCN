@@ -72,7 +72,7 @@ class PCNExistenceChecker(object):
         Checks exitance of PCNs for all FiniteField extensions of degree from l to m.
         """
         for n in xrange(l, m):
-            check_n(n)
+            check_n_multiprocessing(n)
         # pool = multiprocessing.Pool(multiprocessing.cpu_count())
         # pool.map(check_n, xrange(l,m))
 

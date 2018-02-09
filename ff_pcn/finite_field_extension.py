@@ -26,6 +26,7 @@ class FiniteFieldExtension(object):
         self.e = e
         self.n = n
         self.q = q
+        self._cache_cofactors = dict()
 
     def upper_border_not_normals(self):
         """
@@ -54,15 +55,15 @@ class FiniteFieldExtension(object):
 
         :param facs: Factorization of q**n-1.
         """
+        self._setup_pcn_search()
+
         q = self.q
         n = self.n
-        F = GF(q, 'a')
-        E = F.extension(n, 'a')
         order = q**n - 1
 
-        x = primitive_element(E, facs)
+        x = primitive_element(self.E, facs)
 
-        y = E(1)
+        y = self.E(1)
         for i in itertools.count(1):
             y *= x
             if gcd(i, order) != 1:
@@ -70,22 +71,41 @@ class FiniteFieldExtension(object):
             if self.completely_normal(y):
                 return y
 
+    def _setup_pcn_search(self):
+        """
+        Setup caches for completely normal tests.
+        """
+        q = self.q
+        p = self.p
+        e = self.e
+        n = self.n
+        self.essential_divs = essential_divisors(p, e, n)
+        self.F = GF(q, 'a')
+        self.E = self.F.extension(n, 'a')
+        self.cofactors = dict()
+        for d in self.essential_divs:
+            G = self.F.extension(d)
+            Gx = PolynomialRing(G, 'x')
+            h = Hom(G, self.E)[0]
+            basepol = Gx.gen()**(n//d)-1
+            cofactors = [basepol.quo_rem(f)[0] for f, mul in list(basepol.factor())]
+            cofactors = [f.map_coefficients(h) for f in cofactors]
+            self.cofactors[d] = cofactors
+            del h
+            del Gx
+            del G
+
     def completely_normal(self, y):
         """
         Returns True if y in GF(q**n) is completely normal over GF(q)
         """
-        p = self.p
-        e = self.e
-        q = self.q
-        n = self.n
+        if not hasattr(self, 'essential_divs'):
+            self._setup_pcn_search()
 
         if y in [0, 1]:
             return False
 
-        self._pow_cache = {1: y}
-
-        divs = essential_divisors(p, e, n)
-        return all(self.normal(y, d) for d in divs)
+        return all(self.normal(y, d) for d in self.essential_divs)
 
     def normal(self, y, d):
         """
@@ -97,19 +117,16 @@ class FiniteFieldExtension(object):
         with sigma: x -> x^q.
         """
         logging.getLogger(__name__).debug('normal: test y: %s over extension %s over F', y, d)
-        n = self.n
-        G = GF(self.q).extension(d)
-        qd = G.order()
-        Gx = PolynomialRing(G, 'x')
-        h = Hom(G, y.parent())[0]
-        basepol = Gx.gen()**(n//d)-1
-        cofactors = [basepol.quo_rem(f)[0] for f, mul in list(basepol.factor())]
+
+        if not hasattr(self, 'cofactors'):
+            self._setup_pcn_search()
+
+        yd = y**(self.q*d)
 
         # Test if frobenius vanishes on cofactors
-        for cofac in cofactors:
-            # cofac = cofac(Gx.gen()**qd)
+        for cofac in self.cofactors[d]:
             logging.getLogger(__name__).debug('normal: test cofac: %s', cofac)
-            if cofac.map_coefficients(h)(y**qd) == 0:
+            if cofac(yd) == 0:
                 return False
         return True
 
@@ -118,7 +135,7 @@ class FiniteFieldExtension(object):
         Evaluates pol(y) using cached data.
         """
         ret = y.parent().zero()
-        for power, coeff in reversed(list(pol)):
+        for power, coeff in enumerate(reversed(list(pol))):
             x = self._pow_cache.get(power, None)
             if x is None:
                 largest_cached_pow = sorted(self._pow_cache.keys())[-1]
