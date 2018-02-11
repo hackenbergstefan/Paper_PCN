@@ -46,7 +46,7 @@ class Factorer(object):
             reader = csv.reader(fp)
             for num, fac in reader:
                 self.database[Integer(num)] = eval(fac)
-        logging.getLogger(__name__).info('Factorer.load: Loaded %s', self.database)
+        logging.getLogger(__name__).debug('Factorer.load: Loaded %s', self.database)
 
 
 factorer = Factorer()
