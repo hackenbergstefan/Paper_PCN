@@ -45,7 +45,11 @@ class Factorer(object):
         with open(FACTOR_DATABASE, 'r') as fp:
             reader = csv.reader(fp)
             for num, fac in reader:
-                self.database[Integer(num)] = eval(fac)
+                try:
+                    self.database[Integer(num)] = eval(fac)
+                except SyntaxError:
+                    logging.getLogger(__name__).critical('Unable to eval: %s %s', num, fac)
+                    raise
         logging.getLogger(__name__).debug('Factorer.load: Loaded %s', self.database)
 
 
