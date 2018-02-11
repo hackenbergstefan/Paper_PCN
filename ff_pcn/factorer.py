@@ -23,7 +23,8 @@ class Factorer(object):
 
     def add(self, num, factorization=None):
         self.database[num] = factorization
-        self.save()
+        if factorization is not None:
+            self.save((num, factorization))
 
     def get(self, num):
         if num < 1e10:
@@ -36,7 +37,12 @@ class Factorer(object):
         logging.getLogger(__name__).critical('Factorer.get: Added %d = %s', num, facs)
         return facs
 
-    def save(self):
+    def save(self, data=None):
+        if data is not None:
+            with open(FACTOR_DATABASE, 'a') as fp:
+                writer = csv.writer(fp)
+                fp.writerow(data)
+            return
         with open(FACTOR_DATABASE, 'w') as fp:
             writer = csv.writer(fp)
             writer.writerows(self.database.items())
@@ -48,7 +54,7 @@ class Factorer(object):
                 try:
                     self.database[Integer(num)] = eval(fac)
                 except SyntaxError:
-                    logging.getLogger(__name__).critical('Unable to eval: %s %s', num, fac)
+                    logging.critical('Unable to eval: %s %s', num, fac)
                     raise
         logging.getLogger(__name__).debug('Factorer.load: Loaded %s', self.database)
 
