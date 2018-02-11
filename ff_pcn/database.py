@@ -15,7 +15,6 @@ except ImportError:
 import os
 import re
 import logging
-from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonPrimitivesMoreEqualNotNormals, ExistanceReasonNeedFactorization, ExistanceReasonFoundOne, ExistanceReasonNotExisting
 
 
 RESULT_FOLDER = os.path.abspath(os.path.join(__file__, '../../result/'))
@@ -29,21 +28,8 @@ class Database(object):
         self.result_folder = result_folder
 
     def add(self, p, e, n, result):
-        resstring = ''
-        if isinstance(result, ExistanceReasonRegular):
-            resstring = 'regular'
-        elif isinstance(result, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox):
-            resstring = 'L > U'
-        elif isinstance(result, ExistanceReasonPrimitivesMoreEqualNotNormals):
-            resstring = '|P| > |H|'
-        elif isinstance(result, ExistanceReasonNeedFactorization):
-            resstring = 'Factorization needed'
-        elif isinstance(result, ExistanceReasonFoundOne):
-            resstring = 'found %s' % result
-        elif isinstance(result, ExistanceReasonNotExisting):
-            resstring = 'not existing'
         with open(os.path.join(self.result_folder, 'ex_%d.txt' % n), 'a') as fp:
-            fp.write('(%d, %d, %d) => %s\n' % (p, e, n, resstring))
+            fp.write('%s\n' % result)
 
     def check_and_cleanup(self):
         for fil in sorted(
@@ -83,11 +69,33 @@ class Database(object):
             if not os.path.exists(os.path.join(self.result_folder, 'ex_%d.txt' % n)):
                 logging.critical('missing %d', n)
 
+    def find_missing_pcns(self, fil):
+        from ff_pcn.pcn_existence_checker import PCNExistenceChecker
+        from sage.all import Integer
+        with open(fil, 'r') as fp:
+            content = fp.readlines()
+
+        for i, line in enumerate(content):
+            if 'False' in line:
+                break
+        if i == len(content):
+            return
+
+        logging.getLogger(__name__).info('check line: %s' % line)
+        match = re.search(r'^\((\d+), (\d+), (\d+)\)', line)
+        p, e, n = tuple(map(Integer, match.groups()))
+        checker = PCNExistenceChecker(p, e, p**e, n)
+        result = checker.check_existance(no_explicit_search=False)
+        logging.getLogger(__name__).info(result)
+        with open(fil, 'w') as fp:
+            fp.writelines(content[:i] + ['%s\n' % result[1]] + content[i+1:])
+
 
 database = Database()
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    database.missing_files(int(sys.argv[1]))
-    database.check_and_cleanup()
+    # database.missing_files(int(sys.argv[1]))
+    # database.check_and_cleanup()
+    database.find_missing_pcns(sys.argv[1])

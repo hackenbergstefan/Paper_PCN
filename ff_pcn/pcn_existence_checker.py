@@ -100,7 +100,7 @@ class PCNExistenceChecker(object):
         self.q = q
         self.ff_extension = FiniteFieldExtension(self.p, self.e, self.q, self.n)
 
-    def check_existance(self):
+    def check_existance(self, no_explicit_search=True):
         logging.getLogger(__name__).debug('check_existance of %s', self)
         p = self.p
         q = self.q
@@ -131,6 +131,9 @@ class PCNExistenceChecker(object):
         if result is True:
             logging.getLogger(__name__).debug('check_existance: |P| >= |H|')
             return (True, ExistanceReasonPrimitivesMoreEqualNotNormals(self))
+
+        if no_explicit_search:
+            return (False, ExistanceReasonNotExisting(self))
 
         y = self._check_existance_find_one()
         logging.getLogger(__name__).debug('check_existance: Found one: %s', y)

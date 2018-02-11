@@ -15,11 +15,17 @@ class ExistanceReason(object):
     def __init__(self, checker):
         self.checker = checker
 
+    def __str__(self):
+        return '(%d, %d, %d) =>' % (self.checker.p, self.checker.e, self.checker.n)
+
     def __repr__(self):
         return 'PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.e, self.checker.n)
 
 
 class ExistanceReasonRegular(ExistanceReason):
+
+    def __str__(self):
+        return '%s regular' % ExistanceReason.__str__(self)
 
     def __repr__(self):
         return '%s because (p,e,n) is regular' % ExistanceReason.__repr__(self)
@@ -33,14 +39,21 @@ class ExistanceReasonQBiggerN(ExistanceReason):
 
 class ExistanceReasonPrimitivesMoreEqualNotNormalsApprox(ExistanceReason):
 
+    def __str__(self):
+        return '%s L > U' % ExistanceReason.__str__(self)
+
     def __repr__(self):
         return '%s |P| >= |H| by approximation' % ExistanceReason.__repr__(self)
 
 
 class ExistanceReasonPrimitivesMoreEqualNotNormals(ExistanceReason):
 
+    def __str__(self):
+        return '%s |P| >= |H|' % ExistanceReason.__str__(self)
+
     def __repr__(self):
         return '%s |P| >= |H|' % ExistanceReason.__repr__(self)
+
 
 class ExistanceReasonFoundOne(ExistanceReason):
 
@@ -48,13 +61,21 @@ class ExistanceReasonFoundOne(ExistanceReason):
         super(ExistanceReasonFoundOne, self).__init__(checker)
         self.f = f
 
+    def __str__(self):
+        return '%s found %s' % (ExistanceReason.__str__(self), self.f)
+
     def __repr__(self):
         return '%s found %s' % (ExistanceReason.__repr__(self), self.f)
 
+
 class ExistanceReasonNotExisting(ExistanceReason):
+
+    def __str__(self):
+        return '%s False' % ExistanceReason.__str__(self)
 
     def __repr__(self):
         return 'NO PCN exists for (%d, %d, %d)' % (self.checker.p, self.checker.e, self.checker.n)
+
 
 class ExistanceReasonNeedFactorization(ExistanceReason):
 
