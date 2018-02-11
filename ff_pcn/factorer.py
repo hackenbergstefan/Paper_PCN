@@ -41,7 +41,7 @@ class Factorer(object):
         if data is not None:
             with open(FACTOR_DATABASE, 'a') as fp:
                 writer = csv.writer(fp)
-                fp.writerow(data)
+                writer.writerow(data)
             return
         with open(FACTOR_DATABASE, 'w') as fp:
             writer = csv.writer(fp)
