@@ -30,7 +30,8 @@ class Factorer(object):
             return list(factor(num))
         if num in self.database:
             return self.database[num]
-        facs = list(factor(num))
+        logging.getLogger(__name__).critical('Factorer.get: Factor ecm: %d', num)
+        facs = list(factor(num, method='ecm'))
         self.add(num, facs)
         logging.getLogger(__name__).critical('Factorer.get: Added %d = %s', num, facs)
         return facs
