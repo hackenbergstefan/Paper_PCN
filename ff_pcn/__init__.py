@@ -37,6 +37,11 @@ class ExistanceReasonQBiggerN(ExistanceReason):
         return '%s because q > n' % ExistanceReason.__repr__(self)
 
 
+class ExistanceReasonProposition53(ExistanceReason):
+
+    def __repr__(self):
+        return '%s Proposition 5.3' % ExistanceReason.__repr__(self)
+
 class ExistanceReasonPrimitivesMoreEqualNotNormalsApprox(ExistanceReason):
 
     def __str__(self):
@@ -82,5 +87,15 @@ class ExistanceReasonNeedFactorization(ExistanceReason):
     def __init__(self, checker):
         super(ExistanceReasonNeedFactorization, self).__init__(checker)
 
+    def __str__(self):
+        return '%s False %s' % (ExistanceReason.__str__(self), self.checker.missing_factors)
+
     def __repr__(self):
-        return 'For (%d, %d, %d) factorization is needed' % (self.checker.p, self.checker.e, self.checker.n)
+        return 'For (%d, %d, %d) factorization of %s is needed' % (self.checker.p, self.checker.e, self.checker.n, self.checker.missing_factors)
+
+
+class MissingFactorsException(Exception):
+
+    def __init__(self, missing_factors):
+        super(MissingFactorsException, self).__init__()
+        self.missing_factors = missing_factors

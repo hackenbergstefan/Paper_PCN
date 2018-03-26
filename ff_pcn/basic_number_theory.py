@@ -105,5 +105,6 @@ def factor_with_euler_phi(p, m, use_factorer=True):
                 ret[k] = l
             else:
                 ret[k] += l
+        assert prod(k**l for k, l in ret.items()) == p**m - 1
         return sorted(ret.items())
     raise MissingFactorsException(missing_factors)

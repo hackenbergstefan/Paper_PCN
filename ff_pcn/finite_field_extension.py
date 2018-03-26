@@ -19,6 +19,7 @@ from sage.all import (
 )
 from ff_pcn.basic_number_theory import (
     regular,
+    factor_with_euler_phi,
 )
 from ff_pcn.finite_field_theory import (
     essential_divisors,
@@ -175,6 +176,12 @@ class FiniteFieldExtension(object):
     def regular(self):
         return regular(self.p, self.e, self.n)
 
+    def factor(self, use_factorer=True):
+        """
+        Returns factorization of q^n - 1.
+        """
+        return factor_with_euler_phi(self.p, self.e*self.n, use_factorer=use_factorer)
+
     def pcn_criterion_1(self):
         """
         Returns True, if Criterion 1 applies.
@@ -182,7 +189,10 @@ class FiniteFieldExtension(object):
         Criterion 1:
         U_qn >= L_qn
         """
-        return self.u_qn() >= self.l_qn()
+        ls = self.u_qn()
+        rs = self.l_qn()
+        logging.getLogger(__name__).debug('pcn_criterion_1: %E > %E', ls, rs)
+        return ls > rs
 
     def pcn_criterion_2(self):
         """
@@ -193,11 +203,13 @@ class FiniteFieldExtension(object):
         """
         qn = self.qn
         ls = self.qn - self.u_qn()
-        rs = 4514.7 * qn**(5/8) * 2**sum(
+        rs = 4514.7 * qn**(5.0/8) * 2**sum(
             self.omega_d(d)
             for d in
             self.essential_divisors()
         )
+        logging.getLogger(__name__).debug('pcn_criterion_2: %E >= %E', ls, rs)
+        assert rs >= 0
         return ls >= rs
 
     def pcn_criterion_3(self):
@@ -209,9 +221,32 @@ class FiniteFieldExtension(object):
         """
         qn = self.qn
         ls = self.qn - self.u_qn()
-        rs = 4514.7 * qn**(5/8) * prod(
+        rs = 4514.7 * qn**(5.0/8) * prod(
             self.theta_d(d) * 2 ** self.omega_d(d)
             for d in
             self.essential_divisors()
         )
+        logging.getLogger(__name__).debug('pcn_criterion_3: %E >= %E', ls, rs)
+        assert rs >= 0
+        return ls >= rs
+
+    def pcn_criterion_4(self):
+        """
+        Returns True, if Criterion 3 applies.
+
+        NOTE: Factorization of q^n-1 required.
+
+        Criterion 4:
+        Equation 5.1 with q^n - U_qn
+        """
+        factorization = self.factor()
+        omega = len(factorization)
+        ls = self.qn - self.u_qn()
+        rs = self.q**(self.n/2.0) * (2**omega - 1) * prod(
+            self.theta_d(d) * 2 ** self.omega_d(d)
+            for d in
+            self.essential_divisors()
+        )
+        logging.getLogger(__name__).debug('pcn_criterion_4: %E >= %E', ls, rs)
+        assert rs >= 0
         return ls >= rs

@@ -197,5 +197,5 @@ def pens_to_check(n):
                 continue
             if p**e >= p_free_part(n, p):
                 continue
-        tocheck += [(p, e, n)]
+            tocheck += [(p, e, n)]
     return tocheck
