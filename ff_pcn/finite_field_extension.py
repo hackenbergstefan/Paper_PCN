@@ -9,45 +9,42 @@ __author__ = "Stefan Hackenberg"
 
 import itertools
 import logging
-from sage.all import moebius, divisors, Integer, GF, gcd, Hom, PolynomialRing, factor
-from ff_pcn.finite_field_theory import essential_divisors, euler_polynomial, primitive_element
+from sage.all import (
+    GF,
+    Hom,
+    Integer,
+    PolynomialRing,
+    gcd,
+    prod,
+)
+from ff_pcn.basic_number_theory import (
+    regular,
+)
+from ff_pcn.finite_field_theory import (
+    essential_divisors,
+    lower_euler_phi,
+    omega_d,
+    primitive_element,
+    theta_d,
+    u_qn,
+)
 
 
 class FiniteFieldExtension(object):
 
-    def __init__(self, p, e, q, n):
+    def __init__(self, p, e, n):
         """
         :param p: Prime p. Characteristic of Field.
         :param e: Power of base field F = GF(q)
         :param q: q = p^e
         :param n: Grade of extension E = GF(q^n)
         """
-        self.p = p
-        self.e = e
-        self.n = n
-        self.q = q
+        self.p = Integer(p)
+        self.e = Integer(e)
+        self.n = Integer(n)
+        self.q = self.p**self.e
+        self.qn = self.q**self.n
         self._cache_cofactors = dict()
-
-    def upper_border_not_normals(self):
-        """
-        Returns a (very good) upper border for the number of elements of E, which are not normal.
-        """
-        logging.getLogger(__name__).debug('upper_border_not_normals_1')
-        p = self.p
-        e = self.e
-        q = self.q
-        n = self.n
-
-        essential_divs = essential_divisors(p, e, n)
-        border = sum(
-            sum(
-                moebius(n//(d*a))*q**(d*a)
-                for a in divisors(n//d)
-            ) - euler_polynomial(q, d, n)
-            for d in essential_divs
-        )
-        logging.getLogger(__name__).debug('upper_border_not_normals %d', border)
-        return border
 
     def pcn_element(self, facs):
         """
@@ -142,3 +139,79 @@ class FiniteFieldExtension(object):
                 x = self._pow_cache[power] = self._pow_cache[largest_cached_pow]**(power-largest_cached_pow)
             ret += coeff * x
         return ret
+
+    def omega_d(self, d):
+        """
+        Returns Omega_d := sum_(t|(n/d)') phi(t)/ord_t(q^d).
+        """
+        assert Integer(d).divides(self.n)
+        return omega_d(d, self.p, self.e, self.n)
+
+    def theta_d(self, d):
+        """
+        Returns Theta_d := Phi_(q^d)(x^(n/d)' - 1) / q^(d*(n/d)').
+        """
+        assert Integer(d).divides(self.n)
+        return theta_d(d, self.p, self.e, self.n)
+
+    def u_qn(self):
+        """
+        Returns U_(p**e,n). Proposition 4.4.
+        """
+        return u_qn(self.p, self.e, self.n)
+
+    def l_qn(self):
+        """
+        Returns L_(p**e,n). Equation 4.2.
+        """
+        return lower_euler_phi(self.qn - 1).n(10)
+
+    def essential_divisors(self):
+        """
+        Returns a list of essential divisors of (p, e, n).
+        """
+        return essential_divisors(self.p, self.e, self.n)
+
+    def regular(self):
+        return regular(self.p, self.e, self.n)
+
+    def pcn_criterion_1(self):
+        """
+        Returns True, if Criterion 1 applies.
+
+        Criterion 1:
+        U_qn >= L_qn
+        """
+        return self.u_qn() >= self.l_qn()
+
+    def pcn_criterion_2(self):
+        """
+        Returns True, if Criterion 2 applies.
+
+        Criterion 2: Equation 5.3
+        q^n - U_qn >= 4514.7 * q^(5n/8) 2^sum_d Omega_d
+        """
+        qn = self.qn
+        ls = self.qn - self.u_qn()
+        rs = 4514.7 * qn**(5/8) * 2**sum(
+            self.omega_d(d)
+            for d in
+            self.essential_divisors()
+        )
+        return ls >= rs
+
+    def pcn_criterion_3(self):
+        """
+        Returns True, if Criterion 3 applies.
+
+        Criterion 3: Equation 5.3 with 5.1
+        q^n - U_qn >= 4514.7 * q^(5n/8) 2^sum_d Omega_d
+        """
+        qn = self.qn
+        ls = self.qn - self.u_qn()
+        rs = 4514.7 * qn**(5/8) * prod(
+            self.theta_d(d) * 2 ** self.omega_d(d)
+            for d in
+            self.essential_divisors()
+        )
+        return ls >= rs

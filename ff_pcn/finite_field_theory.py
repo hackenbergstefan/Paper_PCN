@@ -1,4 +1,4 @@
-#!/usr/bin/env sage
+#!/usr/bin/env python2
 
 """
 Module coding results mainly found by Hachenberger.
@@ -9,8 +9,23 @@ __author__ = "Stefan Hackenberg"
 
 import logging
 import itertools
-from sage.all import Integer, uniq, factor, DiGraph, is_prime, divisors, prime_divisors, prod, euler_phi
-from ff_pcn.basic_number_theory import largest_divisor, ordn, squarefree, p_free_part, is_regular
+from sage.all import (
+    DiGraph,
+    Integer,
+    divisors,
+    euler_gamma,
+    euler_phi,
+    e as euler_const,
+    factor,
+    is_prime,
+    log,
+    moebius,
+    prime_divisors,
+    prod,
+    primes,
+    uniq,
+)
+from ff_pcn.basic_number_theory import largest_divisor, ordn, squarefree, p_free_part, regular
 from ff_pcn.datastore import store
 from ff_pcn.factorer import factorer
 
@@ -45,7 +60,7 @@ def module_characters(decomp):
     return uniq(map(lambda l: l[0]*l[1]*l[2] / squarefree(l[0]), decomp))
 
 
-@store('euler_polynomial')
+# @store('euler_polynomial')
 def euler_polynomial(q, d, n):
     """
     Returns phi_(q^d)(x^(n/d)-1) where phi_q is the polynomial analogon for the euler totient function.
@@ -61,8 +76,8 @@ def euler_polynomial(q, d, n):
     divs_tau = divisors(tau)
     ordne = {e: ordn(e, qd) for e in divs_tau}
 
-    return q**(n-d*tau) * \
-          prod((
+    return q**(n//d-tau) * \
+        prod((
               (qd**ordne[e] - 1)**(euler_phi(e)//ordne[e])
               for e in divisors(tau)
           ))
@@ -94,7 +109,7 @@ def essential_divisors(p, e, n):
     Returns a list of essential divisors of (p, e, n).
     """
     q = p**e
-    if is_regular(p, e, 1, n, 1):
+    if regular(p, e, n):
         return []
     divsN = divisors(n)[:-1]
     adjfunc = (lambda i,j:
@@ -119,3 +134,68 @@ def primitive_element(E, facs):
             continue
         if all((y**co) != 1 for co in cofacs):
             return y
+
+
+def u_qn(p, e, n):
+    """
+    Returns U_(p**e,n). Proposition 4.4.
+    """
+    q = p**e
+
+    essential_divs = essential_divisors(p, e, n)
+    border = sum(
+        sum(
+            moebius(n//(d*a))*q**(d*a)
+            for a in divisors(n//d)
+        ) - euler_polynomial(q, d, n)
+        for d in essential_divs
+    )
+    assert border >= 0
+    return border
+
+
+def omega_d(d, p, e, n):
+    """
+    Returns Omega_d := sum_(t|(n/d)') phi(t)/ord_t(q^d).
+    """
+    return sum([
+        euler_phi(t)//ordn(t, p**(e*d))
+        for t in
+        divisors(p_free_part(n//d, p))
+    ])
+
+
+def theta_d(d, p, e, n):
+    """
+    Returns Theta_d := Phi_(q^d)(x^(n/d)' - 1) / q^(d*(n/d)').
+    """
+    q = p**e
+    n_ = p_free_part(n//d, p)*d
+    ret = euler_polynomial(q, d, n_) / q**(d * p_free_part(n//d, p))
+    assert ret < 1
+    return ret
+
+
+def lower_euler_phi(n):
+    """
+    Returns a lower bound for euler_phi(n).
+    """
+    return n/(euler_const**euler_gamma * log(log(n)) + 3/log(log(n)))
+
+
+def pens_to_check(n):
+    """
+    Returns a list of tripples (p, e, n) with:
+      - p**e < n'
+      - (p, e, n) is not regular
+    """
+    n = Integer(n)
+    tocheck = []
+    for p in primes(n):
+        for e in xrange(1, n):
+            if regular(p, e, n):
+                continue
+            if p**e >= p_free_part(n, p):
+                continue
+        tocheck += [(p, e, n)]
+    return tocheck
