@@ -1,4 +1,4 @@
-#!/usr/bin/env sage
+#!/usr/bin/env python2
 
 """
 Module coding basic number theoretical applications.
@@ -9,13 +9,24 @@ __author__ = "Stefan Hackenberg"
 
 from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, euler_phi, prod, ZZ
 from factorer import factorer
+from ff_pcn import MissingFactorsException
+
+
+def regular(p, e, n):
+    """
+    Returns True if (q, n) with q = p^e is regular.
+    """
+    p = Integer(p)
+    e = Integer(e)
+    n = Integer(n)
+    return is_regular(p, e, 1, n, 1)
 
 
 def is_regular(p, e, k, t, pi):
     """
     Tests if (p,e,k,t,pi) is regular
     """
-    return gcd(ordn(squarefree(k*p_free_part(t,p)), p**e), k*t*pi) == 1
+    return gcd(ordn(squarefree(k*p_free_part(t, p)), p**e), k*t*pi) == 1
 
 
 def squarefree(n):
@@ -27,7 +38,7 @@ def squarefree(n):
 
 def ordn(m, q):
     """
-    Computes ordn m(q) = min{ k: q ** k = 1 mod m }
+    Computes ordn_m(q) = min{ k: q ** k = 1 mod m }
     """
     if m == 1 or q == 1:
         return 1
@@ -66,23 +77,33 @@ def largest_divisor(p, n):
     return p**multiplicity(p, n)
 
 
-def factor_with_euler_phi(p, m):
+def factor_with_euler_phi(p, m, use_factorer=True):
     """
     Returns factorization of p**m-1 with p prime by using
     p**m-1 = prod_(d|m) Phi_d(p).
     """
+    pm = p**m-1
     Zx = PolynomialRing(ZZ, 'x')
     factors = []
-    missing_factors = False
+    missing_factors = []
     for d in divisors(m):
         phi = Zx.cyclotomic_polynomial(d)(p)
+        assert phi.divides(pm)
         if phi == 1:
             continue
-        facs = factorer.get(phi)
+        if use_factorer:
+            facs = factorer.get(phi)
+        else:
+            facs = list(factor(phi))
         factors += facs or []
         if facs is None:
-            factorer.add(phi)
-            missing_factors = True
-    if missing_factors is False:
-        return factors
-    return None
+            missing_factors += [phi]
+    if len(missing_factors) == 0:
+        ret = {}
+        for k, l in factors:
+            if k not in ret:
+                ret[k] = l
+            else:
+                ret[k] += l
+        return sorted(ret.items())
+    raise MissingFactorsException(missing_factors)
