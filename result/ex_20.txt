@@ -1,0 +1,36 @@
+(11, 1, 20) => regular
+(5, 1, 20) => regular
+(19, 1, 20) => L > U
+(2, 1, 20) => found PCN exists for (2, 1, 20) found a
+(3, 1, 20) => found PCN exists for (3, 1, 20) found a
+(2, 2, 20) => found PCN exists for (2, 2, 20) found a
+(7, 1, 20) => found PCN exists for (7, 1, 20) found a
+(2, 3, 20) => |P| > |H|
+(2, 4, 20) => regular
+(13, 1, 20) => found PCN exists for (13, 1, 20) found a
+(17, 1, 20) => found PCN exists for (17, 1, 20) found a
+(3, 2, 20) => found PCN exists for (3, 2, 20) found a
+(5, 1, 20) => regular
+(11, 1, 20) => regular
+(3, 1, 20) => found a
+(17, 1, 20) => found a
+(2, 1, 20) => found a
+(13, 1, 20) => found a
+(19, 1, 20) => L > U
+(3, 2, 20) => found a
+(2, 2, 20) => found a
+(2, 3, 20) => |P| >= |H|
+(2, 4, 20) => regular
+(7, 1, 20) => found a
+(11, 1, 20) => regular
+(5, 1, 20) => regular
+(2, 1, 20) => found a
+(2, 2, 20) => found a
+(2, 3, 20) => |P| >= |H|
+(2, 4, 20) => regular
+(19, 1, 20) => L > U
+(3, 1, 20) => found a
+(3, 2, 20) => found a
+(7, 1, 20) => found a
+(17, 1, 20) => found a
+(13, 1, 20) => found a
