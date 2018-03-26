@@ -8,7 +8,7 @@ __author__ = "Stefan Hackenberg"
 
 
 from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, euler_phi, prod, ZZ
-from factorer import factorer
+from ff_pcn.factorer import factorer
 from ff_pcn import MissingFactorsException
 
 
@@ -107,4 +107,6 @@ def factor_with_euler_phi(p, m, use_factorer=True):
                 ret[k] += l
         assert prod(k**l for k, l in ret.items()) == p**m - 1
         return sorted(ret.items())
+    else:
+        factorer.queue += missing_factors
     raise MissingFactorsException(missing_factors)

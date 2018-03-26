@@ -14,7 +14,7 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
 import logging
 import multiprocessing
-from sage.all import Integer, euler_gamma, log, PolynomialRing, divisors, factor, primes, ZZ, prod, euler_phi
+from sage.all import Integer, euler_gamma, log, PolynomialRing, divisors, factor, primes, ZZ, prod, euler_phi, uniq
 from ff_pcn import ExistanceReasonRegular, ExistanceReasonPrimitivesMoreEqualNotNormalsApprox, ExistanceReasonPrimitivesMoreEqualNotNormals, ExistanceReasonNeedFactorization, ExistanceReasonFoundOne, ExistanceReasonNotExisting, MissingFactorsException, ExistanceReasonProposition53
 from ff_pcn.basic_number_theory import is_regular, factor_with_euler_phi, p_free_part
 from ff_pcn.finite_field_extension import FiniteFieldExtension
@@ -255,7 +255,6 @@ class CriterionChecker(object):
         logging.info('check_criterions %s: %s', (p, e, n), crits)
         if not any(crits):
             logging.critical('check_criterions %s: None True', (p, e, n))
-        return crits
 
     def any_criterion(self, p, e, n):
         ff = FiniteFieldExtension(p, e, n)
@@ -279,3 +278,6 @@ if __name__ == '__main__':
     for n in xrange(int(sys.argv[1]), int(sys.argv[2])):
         pens = pens_to_check(n)
         CriterionChecker(pens)
+
+    queue = ['factor(%d)' % n for n in sorted(uniq(factorer.queue))]
+    logging.critical('factorizations needed: \n%s', '\n'.join(queue))
