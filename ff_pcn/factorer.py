@@ -8,8 +8,10 @@ __author__ = "Stefan Hackenberg"
 
 import logging
 import os
+import sys
+import re
 import csv
-from sage.all import factor, Integer
+from sage.all import factor, Integer, prod
 
 
 FACTOR_DATABASE = os.path.abspath(os.path.join(__file__, '../factors.csv'))
@@ -20,6 +22,7 @@ class Factorer(object):
     def __init__(self):
         self.database = dict()
         self.load()
+        self.queue = []
 
     def add(self, num, factorization=None):
         self.database[num] = factorization
@@ -55,6 +58,20 @@ class Factorer(object):
                     raise
         logging.getLogger(__name__).debug('Factorer.load: Loaded %s', self.database)
 
+    def read(self, yafu_out_fil):
+        """
+        Read yafu output file. Line format: (NUMBER)/FAC1/FAC2/...
+        """
+        for line in open(yafu_out_fil).readlines():
+            num = int(re.search(r'^\((\d+)\)', line).group(1))
+            facs = [(Integer(r), Integer(m or 1)) for r, m in re.findall(r'/(\d+)\^?(\d+)?', line)]
+
+            num2 = prod([r**m for r, m in facs])
+            assert num == num2, '%d != %d = prod(%s)' % (num, num2, facs)
+
+            facs = cleanup_factorization([(f, 1) for f in facs])
+            self.add(num, facs)
+
 
 factorer = Factorer()
 
@@ -66,7 +83,11 @@ def cleanup_factorization(factorization):
     facs = {}
     for p, mul in factorization:
         if p in facs:
-            facs[p] = mul
-        else:
             facs[p] += mul
+        else:
+            facs[p] = mul
     return list(facs.items())
+
+
+if __name__ == '__main__':
+    factorer.read(sys.argv[1])
