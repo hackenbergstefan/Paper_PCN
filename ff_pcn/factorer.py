@@ -17,6 +17,10 @@ from sage.all import factor, Integer, prod
 FACTOR_DATABASE = os.path.abspath(os.path.join(__file__, '../factors.csv'))
 
 
+def facprod(fac):
+    return prod((p**m for p, m in fac))
+
+
 class Factorer(object):
 
     def __init__(self):
@@ -54,7 +58,7 @@ class Factorer(object):
                 try:
                     num = Integer(num)
                     fac = eval(fac)
-                    assert num == prod(fac)
+                    assert num == facprod(fac)
                     self.database[num] = fac
                 except SyntaxError:
                     logging.critical('Unable to eval: %s %s', num, fac)
@@ -69,7 +73,7 @@ class Factorer(object):
             num = int(re.search(r'^\((\d+)\)', line).group(1))
             facs = [(Integer(r), Integer(m or 1)) for r, m in re.findall(r'/(\d+)\^?(\d+)?', line)]
 
-            num2 = prod([r**m for r, m in facs])
+            num2 = facprod(facs)
             assert num == num2, '%d != %d = prod(%s)' % (num, num2, facs)
 
             facs = cleanup_factorization([(f, 1) for f in facs])
