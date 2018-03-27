@@ -21,7 +21,7 @@ YAFU_WORK_FOLDER = './yafu_job'
 YAFU_EXECUTABLE = './yafu-setup-package/prefix/bin/yafu'
 """Path to yafu setup package"""
 
-TIMEOUT = 10*60
+TIMEOUT = 60
 
 
 def factor_with_yafu(num,
@@ -30,40 +30,40 @@ def factor_with_yafu(num,
                      factor_append_to=None,
                      abort_append_to=None):
 
-    tmpdir = tempfile.TemporaryDirectory()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        logging.critical('Start: %d', num)
 
-    logging.critical('Start: %d', num)
+        cmd = [
+            os.path.abspath(yafu_executable),
+            'factor(%d)' % num,
+            '-of',
+            'out.txt',
+            '-silent'
+        ]
+        logging.getLogger(__name__).debug('Popen %s', ' '.join(cmd))
+        proc = subprocess.Popen(
+            cmd,
+            cwd=tmpdir,
+        )
 
-    cmd = [
-        os.path.abspath(yafu_executable),
-        'factor(%d)' % num,
-        '-of',
-        'out.txt',
-        '-silent'
-    ]
-    logging.getLogger(__name__).debug('Popen %s', ' '.join(cmd))
-    proc = subprocess.Popen(
-        cmd,
-        cwd=tmpdir.name,
-    )
-
-    try:
-        proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.communicate()
-        logging.critical('Abort %d', num)
-        if abort_append_to:
-            with open(abort_append_to, 'a') as fp:
-                fp.write('%d\n' % num)
-    else:
-        out = open(tmpdir.name+'/out.txt').read()
-        logging.critical('Finished: %s', out)
-        if factor_append_to:
-            with open(factor_append_to, 'a') as fp:
-                fp.write(out+'\n')
-    finally:
-        tmpdir.cleanup()
+        try:
+            proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+            logging.critical('Abort %d', num)
+            if abort_append_to:
+                with open(abort_append_to, 'a') as fp:
+                    fp.write('%d\n' % num)
+        else:
+            if os.path.exists(tmpdir+'/out.txt'):
+                out = open(tmpdir+'/out.txt').read()
+            else:
+                out = '({0})/{0}'.format(num)
+            logging.critical('Finished: %s', out)
+            if factor_append_to:
+                with open(factor_append_to, 'a') as fp:
+                    fp.write(out+'\n')
 
 
 def factor_with_yafu_mult(num):
