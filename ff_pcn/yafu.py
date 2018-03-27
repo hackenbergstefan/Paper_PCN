@@ -9,7 +9,7 @@ except ImportError:
 
 import sys
 import os
-import shutil
+import tempfile
 import subprocess
 import logging
 import multiprocessing
@@ -27,13 +27,10 @@ TIMEOUT = 10*60
 def factor_with_yafu(num,
                      timeout=TIMEOUT,
                      yafu_executable=YAFU_EXECUTABLE,
-                     yafu_work_folder=YAFU_WORK_FOLDER,
                      factor_append_to=None,
                      abort_append_to=None):
 
-    if os.path.exists(yafu_work_folder):
-        shutil.rmtree(yafu_work_folder)
-    os.mkdir(yafu_work_folder)
+    tmpdir = tempfile.TemporaryDirectory()
 
     logging.critical('Start: %d', num)
 
@@ -42,14 +39,12 @@ def factor_with_yafu(num,
         'factor(%d)' % num,
         '-of',
         'out.txt',
-        '-threads',
-        '%d' % multiprocessing.cpu_count(),
         '-silent'
     ]
     logging.getLogger(__name__).debug('Popen %s', ' '.join(cmd))
     proc = subprocess.Popen(
         cmd,
-        cwd=yafu_work_folder,
+        cwd=tmpdir.name,
     )
 
     try:
@@ -57,22 +52,29 @@ def factor_with_yafu(num,
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.communicate()
-        logging.critical('Abort')
+        logging.critical('Abort %d', num)
         if abort_append_to:
             with open(abort_append_to, 'a') as fp:
                 fp.write('%d\n' % num)
     else:
-        out = open(yafu_work_folder+'/out.txt').read()
+        out = open(tmpdir.name+'/out.txt').read()
         logging.critical('Finished: %s', out)
         if factor_append_to:
             with open(factor_append_to, 'a') as fp:
                 fp.write(out+'\n')
+    finally:
+        tmpdir.cleanup()
+
+
+def factor_with_yafu_mult(num):
+    factor_with_yafu(num, factor_append_to='out', abort_append_to='abort')
 
 
 def factor_batch_with_yafu(batch):
     nums = [int(n) for n in open(batch).readlines()]
-    for num in nums:
-        factor_with_yafu(num, factor_append_to=batch+'.out', abort_append_to=batch+'.abort')
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
+    pool.map(factor_with_yafu_mult, nums)
 
 
 if __name__ == '__main__':
