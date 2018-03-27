@@ -45,14 +45,17 @@ class Factorer(object):
             return
         with open(FACTOR_DATABASE, 'w') as fp:
             writer = csv.writer(fp)
-            writer.writerows(self.database.items())
+            writer.writerows(sorted(self.database.items()))
 
     def load(self):
         with open(FACTOR_DATABASE, 'r') as fp:
             reader = csv.reader(fp)
             for num, fac in reader:
                 try:
-                    self.database[Integer(num)] = eval(fac)
+                    num = Integer(num)
+                    fac = eval(fac)
+                    assert num == prod(fac)
+                    self.database[num] = fac
                 except SyntaxError:
                     logging.critical('Unable to eval: %s %s', num, fac)
                     raise
