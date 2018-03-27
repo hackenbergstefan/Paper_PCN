@@ -4,6 +4,7 @@ import sys
 import os
 import subprocess
 import logging
+import multiprocessing
 
 
 YAFU_WORK_FOLDER = './yafu_job'
@@ -16,7 +17,7 @@ def factor_with_yafu(num, timeout=TIMEOUT):
         fp.write('factor(%d)\n' % num)
 
     proc = subprocess.Popen(
-        ['yafu', '-batchfile', 'job.bat', '-of', 'out.txt', '-threads', '%d' % os.cpu_count()],
+        ['yafu', '-batchfile', 'job.bat', '-of', 'out.txt', '-threads', '%d' % multiprocessing.cpu_count()],
         cwd=YAFU_WORK_FOLDER,
         stdout=subprocess.PIPE,
     )
@@ -31,4 +32,4 @@ def factor_with_yafu(num, timeout=TIMEOUT):
 
 
 if __name__ == '__main__':
-    factor_with_yafu(sys.argv[1])
+    factor_with_yafu(int(sys.argv[1]))
