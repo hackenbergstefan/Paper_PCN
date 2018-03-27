@@ -21,14 +21,15 @@ YAFU_WORK_FOLDER = './yafu_job'
 YAFU_EXECUTABLE = './yafu-setup-package/prefix/bin/yafu'
 """Path to yafu setup package"""
 
-TIMEOUT = 10
+TIMEOUT = 10*60
 
 
 def factor_with_yafu(num,
                      timeout=TIMEOUT,
                      yafu_executable=YAFU_EXECUTABLE,
                      yafu_work_folder=YAFU_WORK_FOLDER,
-                     append_to=None):
+                     factor_append_to=None,
+                     abort_append_to=None):
 
     if os.path.exists(yafu_work_folder):
         shutil.rmtree(yafu_work_folder)
@@ -57,18 +58,21 @@ def factor_with_yafu(num,
         proc.kill()
         proc.communicate()
         logging.critical('Abort')
+        if abort_append_to:
+            with open(abort_append_to, 'a') as fp:
+                fp.write('%d\n' % num)
     else:
         out = open(yafu_work_folder+'/out.txt').read()
         logging.critical('Finished: %s', out)
-        if append_to:
-            with open(append_to, 'a') as fp:
+        if factor_append_to:
+            with open(factor_append_to, 'a') as fp:
                 fp.write(out+'\n')
 
 
 def factor_batch_with_yafu(batch):
     nums = [int(n) for n in open(batch).readlines()]
     for num in nums:
-        factor_with_yafu(num, append_to=batch+'.out')
+        factor_with_yafu(num, factor_append_to=batch+'.out', abort_append_to=batch+'.abort')
 
 
 if __name__ == '__main__':
