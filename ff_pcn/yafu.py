@@ -13,6 +13,7 @@ import tempfile
 import subprocess
 import logging
 import multiprocessing
+import argparse
 
 
 YAFU_WORK_FOLDER = './yafu_job'
@@ -70,13 +71,33 @@ def factor_with_yafu_mult(num):
     factor_with_yafu(num, factor_append_to='out', abort_append_to='abort')
 
 
-def factor_batch_with_yafu(batch):
+def factor_batch_with_yafu(batch, threads):
     nums = [int(n) for n in open(batch).readlines()]
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(threads)
 
     pool.map(factor_with_yafu_mult, nums)
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file')
+    parser.add_argument(
+        '--timeout',
+        type=int,
+        default=TIMEOUT,
+    )
+    parser.add_argument(
+        '--threads',
+        type=int,
+        default=multiprocessing.cpu_count(),
+    )
+
+    args = parser.parse_args()
+    global TIMEOUT
+    TIMEOUT = args.timeout
+    factor_batch_with_yafu(args.file, threads=args.threads)
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    factor_batch_with_yafu(sys.argv[1])
+    main()
