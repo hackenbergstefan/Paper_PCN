@@ -72,7 +72,7 @@ class Factorer(object):
             num2 = facprod(facs)
             assert num == num2, '%d != %d = prod(%s)' % (num, num2, facs)
 
-            facs = cleanup_factorization([(f, 1) for f in facs])
+            facs = cleanup_factorization(facs)
             self.add(num, facs)
         self.save()
 
