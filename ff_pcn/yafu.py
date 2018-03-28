@@ -24,6 +24,8 @@ YAFU_EXECUTABLE = './yafu-setup-package/prefix/bin/yafu'
 
 TIMEOUT = 60
 
+YAFU_ARGS = []
+
 
 def factor_with_yafu(num,
                      timeout=TIMEOUT,
@@ -39,8 +41,8 @@ def factor_with_yafu(num,
             'factor(%d)' % num,
             '-of',
             'out.txt',
-            '-silent'
-        ]
+        ] + YAFU_ARGS
+
         logging.getLogger(__name__).debug('Popen %s', ' '.join(cmd))
         proc = subprocess.Popen(
             cmd,
@@ -79,6 +81,8 @@ def factor_batch_with_yafu(batch, threads):
 
 
 def main():
+    global TIMEOUT
+    global YAFU_ARGS
     parser = argparse.ArgumentParser()
     parser.add_argument('file')
     parser.add_argument(
@@ -91,10 +95,14 @@ def main():
         type=int,
         default=multiprocessing.cpu_count(),
     )
+    parser.add_argument(
+        '--yafu-args',
+        default='--silent',
+    )
 
     args = parser.parse_args()
-    global TIMEOUT
     TIMEOUT = args.timeout
+    YAFU_ARGS = args.yafu_args.split()
     factor_batch_with_yafu(args.file, threads=args.threads)
 
 
