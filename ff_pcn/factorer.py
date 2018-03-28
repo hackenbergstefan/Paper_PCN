@@ -30,8 +30,6 @@ class Factorer(object):
 
     def add(self, num, factorization=None):
         self.database[num] = factorization
-        if factorization is not None:
-            self.save((num, factorization))
 
     def get(self, num):
         if num < 1e10:
@@ -42,11 +40,6 @@ class Factorer(object):
         return None
 
     def save(self, data=None):
-        if data is not None:
-            with open(FACTOR_DATABASE, 'a') as fp:
-                writer = csv.writer(fp)
-                writer.writerow(data)
-            return
         with open(FACTOR_DATABASE, 'w') as fp:
             writer = csv.writer(fp)
             writer.writerows(sorted(self.database.items()))
@@ -70,7 +63,10 @@ class Factorer(object):
         Read yafu output file. Line format: (NUMBER)/FAC1/FAC2/...
         """
         for line in open(yafu_out_fil).readlines():
-            num = int(re.search(r'^\((\d+)\)', line).group(1))
+            num = re.search(r'^\((\d+)\)', line)
+            if not num:
+                continue
+            num = int(num.group(1))
             facs = [(Integer(r), Integer(m or 1)) for r, m in re.findall(r'/(\d+)\^?(\d+)?', line)]
 
             num2 = facprod(facs)
@@ -78,6 +74,7 @@ class Factorer(object):
 
             facs = cleanup_factorization([(f, 1) for f in facs])
             self.add(num, facs)
+        self.save()
 
 
 factorer = Factorer()
