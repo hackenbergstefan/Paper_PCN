@@ -279,5 +279,5 @@ if __name__ == '__main__':
         pens = pens_to_check(n)
         CriterionChecker(pens)
 
-    queue = ['factor(%d)' % n for n in sorted(uniq(factorer.queue))]
+    queue = ['%d' % n for n in sorted(uniq(factorer.queue))]
     logging.critical('factorizations needed: \n%s', '\n'.join(queue))
