@@ -187,10 +187,10 @@ class FiniteFieldExtension(object):
         Returns True, if Criterion 1 applies.
 
         Criterion 1:
-        U_qn >= L_qn
+        L_qn > U_qn
         """
-        ls = self.u_qn()
-        rs = self.l_qn()
+        ls = self.l_qn()
+        rs = self.u_qn()
         logging.getLogger(__name__).debug('pcn_criterion_1: %E > %E', ls, rs)
         return ls > rs
 
@@ -217,7 +217,7 @@ class FiniteFieldExtension(object):
         Returns True, if Criterion 3 applies.
 
         Criterion 3: Equation 5.3 with 5.1
-        q^n - U_qn >= 4514.7 * q^(5n/8) 2^sum_d Omega_d
+        q^n - U_qn >= 4514.7 * q^(5n/8) prod_d( Theta_d * 2^Omega_d )
         """
         qn = self.qn
         ls = self.qn - self.u_qn()
@@ -228,6 +228,13 @@ class FiniteFieldExtension(object):
         )
         logging.getLogger(__name__).debug('pcn_criterion_3: %E >= %E', ls, rs)
         assert rs >= 0
+        if ls < rs:
+            rs = 4.9 * qn**(3.0/4) * prod(
+                self.theta_d(d) * 2 ** self.omega_d(d)
+                for d in
+                self.essential_divisors()
+            )
+            logging.getLogger(__name__).debug('pcn_criterion_3: %E >= %E', ls, rs)
         return ls >= rs
 
     def pcn_criterion_4(self):
