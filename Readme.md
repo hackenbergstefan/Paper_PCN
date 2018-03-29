@@ -13,5 +13,5 @@ For factorizations yafu is used. [yafu.py](./ff_pcn/yafu.py) provides an batchpr
 1. `make all`.
 1. Setup paths in `yafu.ini`.
 
-### Note
+#### Note
 `yafu.ini` must always placed at current working directory.
