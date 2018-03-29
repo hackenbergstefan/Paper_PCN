@@ -14,6 +14,7 @@ import subprocess
 import logging
 import multiprocessing
 import argparse
+import shutil
 
 
 YAFU_WORK_FOLDER = './yafu_job'
@@ -44,6 +45,8 @@ def factor_with_yafu(num,
             '-of',
             'out.txt',
         ] + YAFU_ARGS
+
+        shutil.copy(os.path.join(YAFU_EXECUTABLE, '../yafu.ini'), os.path.join(tmpdir, 'yafu.ini'))
 
         logging.getLogger(__name__).debug('Popen %s', ' '.join(cmd))
         proc = subprocess.Popen(
