@@ -99,7 +99,7 @@ def main():
     )
     parser.add_argument(
         '--yafu-args',
-        default='--silent',
+        default='-silent',
     )
 
     args = parser.parse_args()
