@@ -46,7 +46,7 @@ def factor_with_yafu(num,
             'out.txt',
         ] + YAFU_ARGS
 
-        shutil.copy(os.path.join(YAFU_EXECUTABLE, '../yafu.ini'), os.path.join(tmpdir, 'yafu.ini'))
+        shutil.copy(os.path.abspath(os.path.join(YAFU_EXECUTABLE, '../yafu.ini')), os.path.join(tmpdir, 'yafu.ini'))
 
         logging.getLogger(__name__).debug('Popen %s', ' '.join(cmd))
         proc = subprocess.Popen(
