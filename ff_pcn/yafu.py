@@ -28,13 +28,15 @@ YAFU_ARGS = []
 
 
 def factor_with_yafu(num,
-                     timeout=TIMEOUT,
+                     timeout=None,
                      yafu_executable=YAFU_EXECUTABLE,
                      factor_append_to=None,
                      abort_append_to=None):
 
+    timeout = timeout or TIMEOUT
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        logging.critical('Start: %d', num)
+        logging.critical('Start: %d with timeout %d', num, timeout)
 
         cmd = [
             os.path.abspath(yafu_executable),
