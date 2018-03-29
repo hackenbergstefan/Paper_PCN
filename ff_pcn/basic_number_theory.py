@@ -7,7 +7,7 @@ Module coding basic number theoretical applications.
 __author__ = "Stefan Hackenberg"
 
 
-from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, euler_phi, prod, ZZ
+from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, prod, ZZ
 from ff_pcn.factorer import factorer
 from ff_pcn import MissingFactorsException
 
@@ -110,3 +110,14 @@ def factor_with_euler_phi(p, m, use_factorer=True):
     else:
         factorer.queue += missing_factors
     raise MissingFactorsException(missing_factors)
+
+
+def euler_phi(factorization):
+    """
+    Returns euler_phi(n) by giving a factorization of n.
+    """
+    return prod(
+        p**(k-1) * (p-1)
+        for p, k
+        in factorization
+    )

@@ -11,6 +11,7 @@ from ff_pcn.basic_number_theory import (
     p_free_part,
     regular,
     factor_with_euler_phi,
+    euler_phi as euler_phi_from_factor,
 )
 from sage.all import (
     lcm,
@@ -50,3 +51,8 @@ class BasicNumberTheoryTestCase(TestCase):
         for p in primes(50):
             for e in xrange(1, 5):
                 self.assertEqual(factor_with_euler_phi(p, e, use_factorer=False), list(factor(p**e-1)))
+
+    def test_euler_phi(self):
+        for n in xrange(1, 10000):
+            n = Integer(n)
+            self.assertEqual(euler_phi_from_factor(list(factor(n))), euler_phi(n))

@@ -20,6 +20,7 @@ from sage.all import (
 from ff_pcn.basic_number_theory import (
     regular,
     factor_with_euler_phi,
+    euler_phi,
 )
 from ff_pcn.finite_field_theory import (
     essential_divisors,
@@ -47,7 +48,7 @@ class FiniteFieldExtension(object):
         self.qn = self.q**self.n
         self._cache_cofactors = dict()
 
-    def pcn_element(self, facs):
+    def pcn_element(self):
         """
         Returns a PCN-Element.
 
@@ -59,7 +60,7 @@ class FiniteFieldExtension(object):
         n = self.n
         order = q**n - 1
 
-        x = primitive_element(self.E, facs)
+        x = primitive_element(self.E, self.factorization)
 
         y = self.E(1)
         for i in itertools.count(1):
@@ -180,7 +181,10 @@ class FiniteFieldExtension(object):
         """
         Returns factorization of q^n - 1.
         """
-        return factor_with_euler_phi(self.p, self.e*self.n, use_factorer=use_factorer)
+        if hasattr(self, 'factorization'):
+            return self.factorization
+        self.factorization = factor_with_euler_phi(self.p, self.e*self.n, use_factorer=use_factorer)
+        return self.factorization
 
     def pcn_criterion_1(self):
         """
@@ -257,3 +261,30 @@ class FiniteFieldExtension(object):
         logging.getLogger(__name__).debug('pcn_criterion_4: %E >= %E', ls, rs)
         assert rs >= 0
         return ls >= rs
+
+    def pcn_criterion_5(self):
+        """
+        Returns True, if Criterion 5 applies.
+
+        NOTE: Factorization of q^n-1 required.
+
+        Criterion 5:
+        phi(q^n-1) > U_qn
+        """
+        ls = euler_phi(self.factorization)
+        rs = self.u_qn()
+        logging.getLogger(__name__).debug('pcn_criterion_4: %E >= %E', ls, rs)
+        assert ls > 0
+        assert rs > 0
+        return ls > rs
+
+    def pcn_criterion_6(self):
+        """
+        Returns a PCN element, if Criterion 6 applies.
+
+        NOTE: Factorization of q^n-1 required.
+
+        Criterion 6:
+        Give explicit PCN element
+        """
+        return self.pcn_element()
