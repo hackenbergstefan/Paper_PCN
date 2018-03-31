@@ -7,10 +7,22 @@ Module coding basic number theoretical applications.
 __author__ = "Stefan Hackenberg"
 
 
-from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, prod, ZZ
+from sage.all import (
+    GF,
+    Hom,
+    Integer,
+    cyclotomic_polynomial,
+    divisors,
+    factor,
+    gcd,
+    is_prime,
+    moebius,
+    prime_divisors,
+    prod,
+    uniq,
+)
 from ff_pcn import MissingFactorsException
 from ff_pcn.factorer import factorer
-from ff_pcn.cyclotomic_numbers_database import get_factorization as get_factorization_from_online_database
 
 
 def regular(p, e, n):
@@ -84,25 +96,20 @@ def factor_with_euler_phi(p, m, use_factorer=True):
     p**m-1 = prod_(d|m) Phi_d(p).
     """
     pm = p**m-1
-    Zx = PolynomialRing(ZZ, 'x')
     factors = []
     missing_factors = []
     for d in divisors(m):
-        phi = Zx.cyclotomic_polynomial(d)(p)
+        phi = cyclotomic_polynomial(d)(p)
         assert phi.divides(pm)
         if phi == 1:
             continue
         if use_factorer:
-            facs = factorer.get(phi)
-            if facs is None:
-                facs = get_factorization_from_online_database(d, p)
-                if facs:
-                    factorer.add(phi, facs)
+            facs = factorer.get((d, p))
         else:
             facs = list(factor(phi))
         factors += facs or []
         if facs is None:
-            missing_factors += [phi]
+            missing_factors += [(d, p, phi)]
     if len(missing_factors) == 0:
         ret = {}
         for k, l in factors:
