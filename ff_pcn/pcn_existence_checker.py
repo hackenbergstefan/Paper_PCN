@@ -252,21 +252,17 @@ class CriterionChecker(object):
                 ]
             except MissingFactorsException:
                 crits += [None]
+        if not any(crits) and None not in crits:
+            crits += [
+                ff.pcn_criterion_5(),
+            ]
+        if not any(crits) and None not in crits:
+            crits += [
+                ff.pcn_criterion_6(),
+            ]
         logging.info('check_criterions %s: %s', (p, e, n), crits)
         if not any(crits):
             logging.critical('check_criterions %s: None True', (p, e, n))
-
-    def any_criterion(self, p, e, n):
-        ff = FiniteFieldExtension(p, e, n)
-        ret = any((
-            ff.pcn_criterion_1(),
-            ff.pcn_criterion_2(),
-            ff.pcn_criterion_3(),
-            ff.pcn_criterion_4(),
-        ))
-        if not ret:
-            logging.info('any_criterion %s', (p, e, n))
-        return ret
 
 
 if __name__ == '__main__':
