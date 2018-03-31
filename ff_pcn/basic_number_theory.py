@@ -96,6 +96,8 @@ def factor_with_euler_phi(p, m, use_factorer=True):
             facs = factorer.get(phi)
             if facs is None:
                 facs = get_factorization_from_online_database(d, p)
+                if facs:
+                    factorer.add(phi, facs)
         else:
             facs = list(factor(phi))
         factors += facs or []
