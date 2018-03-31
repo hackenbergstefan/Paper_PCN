@@ -30,6 +30,7 @@ class Factorer(object):
 
     def add(self, num, factorization=None):
         self.database[num] = factorization
+        self.save()
 
     def get(self, num):
         if num < 1e10:
@@ -39,7 +40,7 @@ class Factorer(object):
         logging.getLogger(__name__).critical('Factorer.get: Factorization needed : %d', num)
         return None
 
-    def save(self, data=None):
+    def save(self):
         with open(FACTOR_DATABASE, 'w') as fp:
             writer = csv.writer(fp)
             writer.writerows(sorted(self.database.items()))
