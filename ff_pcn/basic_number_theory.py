@@ -8,8 +8,9 @@ __author__ = "Stefan Hackenberg"
 
 
 from sage.all import gcd, Integer, factor, divisors, prime_divisors, uniq, moebius, GF, PolynomialRing, Hom, is_prime, prod, ZZ
-from ff_pcn.factorer import factorer
 from ff_pcn import MissingFactorsException
+from ff_pcn.factorer import factorer
+from ff_pcn.cyclotomic_numbers_database import get_factorization as get_factorization_from_online_database
 
 
 def regular(p, e, n):
@@ -93,6 +94,8 @@ def factor_with_euler_phi(p, m, use_factorer=True):
             continue
         if use_factorer:
             facs = factorer.get(phi)
+            if facs is None:
+                facs = get_factorization_from_online_database(d, p)
         else:
             facs = list(factor(phi))
         factors += facs or []
