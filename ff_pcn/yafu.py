@@ -28,16 +28,19 @@ TIMEOUT = 60
 YAFU_ARGS = []
 
 
-def factor_with_yafu(num,
+def factor_with_yafu(nb,
+                     num,
                      timeout=None,
                      yafu_executable=YAFU_EXECUTABLE,
                      factor_append_to=None,
                      abort_append_to=None):
 
     timeout = timeout or TIMEOUT
+    if timeout == 0:
+        timeout = None
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        logging.critical('Start: %d with timeout %d', num, timeout)
+        logging.critical('Start: %s %d with timeout %d', nb, num, timeout)
 
         cmd = [
             os.path.abspath(yafu_executable),
@@ -59,7 +62,7 @@ def factor_with_yafu(num,
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.communicate()
-            logging.critical('Abort %d', num)
+            logging.critical('Abort %s %d', nb, num)
             if abort_append_to:
                 with open(abort_append_to, 'a') as fp:
                     fp.write('%d\n' % num)
@@ -68,21 +71,19 @@ def factor_with_yafu(num,
                 out = open(tmpdir+'/out.txt').read()
             else:
                 out = '({0})/{0}'.format(num)
-            logging.critical('Finished: %s', out)
+            logging.critical('Finished: %s, %s', nb, out)
             if factor_append_to:
                 with open(factor_append_to, 'a') as fp:
-                    fp.write(out+'\n')
+                    fp.write(str(nb)+' '+out+'\n')
 
 
-def factor_with_yafu_mult(num):
-    factor_with_yafu(num, factor_append_to='out', abort_append_to='abort')
-
-
-def factor_batch_with_yafu(batch, threads):
-    nums = [int(n) for n in open(batch).readlines()]
-    pool = multiprocessing.Pool(threads)
-
-    pool.map(factor_with_yafu_mult, nums)
+def factor_batch_with_yafu(batch):
+    for line in open(batch).readlines():
+        nbnum = line.split()
+        n = int(nbnum[0])
+        b = int(nbnum[1])
+        num = int(nbnum[2])
+        factor_with_yafu((n, b), num, factor_append_to='out', abort_append_to='abort')
 
 
 def main():
@@ -96,11 +97,6 @@ def main():
         default=TIMEOUT,
     )
     parser.add_argument(
-        '--threads',
-        type=int,
-        default=multiprocessing.cpu_count(),
-    )
-    parser.add_argument(
         '--yafu-args',
         default='-silent',
     )
@@ -108,7 +104,7 @@ def main():
     args = parser.parse_args()
     TIMEOUT = args.timeout
     YAFU_ARGS = args.yafu_args.split()
-    factor_batch_with_yafu(args.file, threads=args.threads)
+    factor_batch_with_yafu(args.file)
 
 
 if __name__ == '__main__':
