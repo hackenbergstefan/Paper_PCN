@@ -65,7 +65,7 @@ def factor_with_yafu(nb,
             logging.critical('Abort %s %d', nb, num)
             if abort_append_to:
                 with open(abort_append_to, 'a') as fp:
-                    fp.write('%d\n' % num)
+                    fp.write('%d %d %d\n' % (nb[0], nb[1], num))
         else:
             if os.path.exists(tmpdir+'/out.txt'):
                 out = open(tmpdir+'/out.txt').read()
