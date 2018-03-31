@@ -38,7 +38,7 @@ def get_factorization(n, b):
     fac = None
     for line in req.content.splitlines():
         match = re_database_line.match(line)
-        if int(match.group('b')) == b:
+        if match and int(match.group('b')) == b:
             fac = [Integer(p) for p in match.group('fac').split()]
             break
     if fac is None:
