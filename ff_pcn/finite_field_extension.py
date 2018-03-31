@@ -16,6 +16,7 @@ from sage.all import (
     PolynomialRing,
     gcd,
     prod,
+    sqrt,
 )
 from ff_pcn.basic_number_theory import (
     regular,
@@ -253,8 +254,8 @@ class FiniteFieldExtension(object):
         factorization = self.factor()
         omega = len(factorization)
         ls = self.qn - self.u_qn()
-        rs = self.q**(self.n/2.0) * (2**omega - 1) * prod(
-            self.theta_d(d) * 2 ** self.omega_d(d)
+        rs = sqrt(self.q**self.n) * (2.0**omega - 1) * prod(
+            self.theta_d(d) * 2.0 ** self.omega_d(d)
             for d in
             self.essential_divisors()
         )
@@ -273,7 +274,7 @@ class FiniteFieldExtension(object):
         """
         ls = euler_phi(self.factorization)
         rs = self.u_qn()
-        logging.getLogger(__name__).debug('pcn_criterion_4: %E >= %E', ls, rs)
+        logging.getLogger(__name__).debug('pcn_criterion_5: %E >= %E', ls, rs)
         assert ls > 0
         assert rs > 0
         return ls > rs
