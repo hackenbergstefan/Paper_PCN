@@ -254,7 +254,7 @@ class FiniteFieldExtension(object):
         factorization = self.factor()
         omega = len(factorization)
         ls = self.qn - self.u_qn()
-        rs = sqrt(self.q**self.n) * (2.0**omega - 1) * prod(
+        rs = sqrt(self.q**self.n).n() * (2.0**omega - 1) * prod(
             self.theta_d(d) * 2.0 ** self.omega_d(d)
             for d in
             self.essential_divisors()
