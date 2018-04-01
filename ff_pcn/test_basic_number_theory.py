@@ -12,6 +12,7 @@ from ff_pcn.basic_number_theory import (
     regular,
     factor_with_euler_phi,
     euler_phi as euler_phi_from_factor,
+    cyclotomic_equivalents,
 )
 from sage.all import (
     lcm,
@@ -19,6 +20,7 @@ from sage.all import (
     Integer,
     primes,
     factor,
+    cyclotomic_polynomial
 )
 
 
@@ -56,3 +58,10 @@ class BasicNumberTheoryTestCase(TestCase):
         for n in xrange(1, 10000):
             n = Integer(n)
             self.assertEqual(euler_phi_from_factor(list(factor(n))), euler_phi(n))
+
+    def test_cyclotomic_equivalents(self):
+        n = Integer(2**3 * 3**2)
+        b = Integer(5)
+        equivs = cyclotomic_equivalents(n, b)
+        self.assertEqual(equivs, [(n, b), (n//3, b**3), (n//4, b**4), (n//12, b**12)])
+        self.assertEqual(len(set([cyclotomic_polynomial(n)(b) for n, b in equivs])), 1)
