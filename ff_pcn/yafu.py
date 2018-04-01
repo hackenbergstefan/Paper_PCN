@@ -40,7 +40,7 @@ def factor_with_yafu(nb,
         timeout = None
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        logging.critical('Start: %s %d with timeout %d', nb, num, timeout)
+        logging.critical('Start: %s %d with timeout %s', nb, num, str(timeout))
 
         cmd = [
             os.path.abspath(yafu_executable),
