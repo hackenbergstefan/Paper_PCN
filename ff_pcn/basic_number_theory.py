@@ -22,7 +22,6 @@ from sage.all import (
     uniq,
 )
 from ff_pcn import MissingFactorsException
-from ff_pcn.factorer import factorer
 
 
 def regular(p, e, n):
@@ -95,6 +94,7 @@ def factor_with_euler_phi(p, m, use_factorer=True):
     Returns factorization of p**m-1 with p prime by using
     p**m-1 = prod_(d|m) Phi_d(p).
     """
+    from ff_pcn.factorer import factorer
     pm = p**m-1
     factors = []
     missing_factors = []
@@ -133,3 +133,17 @@ def euler_phi(factorization):
         for p, k
         in factorization
     )
+
+
+def cyclotomic_equivalents(n, b):
+    """
+    Returns equivalent pairs (n',b') for (n,b) by using identity
+
+    Phi_mp^l(b) = Phi_mp(b^(p^(l-1))).
+    (n,b) is always included.
+    """
+    ret = [(n, b)]
+    qs = [q**(m-1) for q, m in list(factor(n)) if m > 1]
+    for q in qs:
+        ret += cyclotomic_equivalents(n//q, b**q)
+    return sorted(uniq(ret), key=lambda nb: (nb[1], nb[0]))
