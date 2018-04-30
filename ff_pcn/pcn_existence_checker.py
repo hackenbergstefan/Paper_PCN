@@ -242,7 +242,7 @@ class CriterionChecker(object):
         ff = FiniteFieldExtension(p, e, n)
         crits = [
             ff.pcn_criterion_1(),
-            ff.pcn_criterion_2(),
+G           ff.pcn_criterion_2(),
             ff.pcn_criterion_3(),
         ]
         if not any(crits):
@@ -258,7 +258,7 @@ class CriterionChecker(object):
             ]
         if not any(crits) and None not in crits:
             crits += [
-                ff.pcn_criterion_6(),
+                # ff.pcn_criterion_6(),
             ]
         logging.info('check_criterions %s: %s', (p, e, n), crits)
         if not any(crits):
@@ -275,5 +275,5 @@ if __name__ == '__main__':
         pens = pens_to_check(n)
         CriterionChecker(pens)
 
-    queue = ['%d' % n for n in sorted(uniq(factorer.queue))]
+    queue = ['%d %d %d %d' % (euler_phi(d), d, p, phi) for d, p, phi in sorted(uniq(factorer.queue), key=lambda (d, p, phi): euler_phi(d))]
     logging.critical('factorizations needed: \n%s', '\n'.join(queue))
