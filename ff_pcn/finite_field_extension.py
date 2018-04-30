@@ -28,8 +28,10 @@ from ff_pcn.finite_field_theory import (
     lower_euler_phi,
     omega_d,
     primitive_element,
+    is_primitive,
     theta_d,
     u_qn,
+    completely_normal,
 )
 
 
@@ -71,7 +73,19 @@ class FiniteFieldExtension(object):
             if self.completely_normal(y):
                 return y
 
-    def _setup_pcn_search(self):
+    def pcn_polynom(self):
+        """
+        Returns lexicographic smallest polynom in F[x] of degree n with pcn root.
+        """
+        fx = PolynomialRing(GF(self.p, 'a'), 'x')
+        for f in fx.polynomials(self.e*self.n):
+            if not f.is_irreducible():
+                continue
+            y = GF(self.q**self.n, name='a', modulus=f).gen()
+            if is_primitive(y, self.factorization) and completely_normal(self.p, self.e, self.n, y):
+                return f
+
+    def _setup_pcn_search(self, E=None):
         """
         Setup caches for completely normal tests.
         """
@@ -81,7 +95,7 @@ class FiniteFieldExtension(object):
         n = self.n
         self.essential_divs = essential_divisors(p, e, n)
         self.F = GF(q, 'a')
-        self.E = self.F.extension(n, 'a')
+        self.E = E or self.F.extension(n, 'a')
         self.cofactors = dict()
         for d in self.essential_divs:
             G = self.F.extension(d)
@@ -129,19 +143,6 @@ class FiniteFieldExtension(object):
             if cofac(yd) == 0:
                 return False
         return True
-
-    def _cache_poly_eval(self, pol, y):
-        """
-        Evaluates pol(y) using cached data.
-        """
-        ret = y.parent().zero()
-        for power, coeff in enumerate(reversed(list(pol))):
-            x = self._pow_cache.get(power, None)
-            if x is None:
-                largest_cached_pow = sorted(self._pow_cache.keys())[-1]
-                x = self._pow_cache[power] = self._pow_cache[largest_cached_pow]**(power-largest_cached_pow)
-            ret += coeff * x
-        return ret
 
     def omega_d(self, d):
         """
@@ -281,11 +282,11 @@ class FiniteFieldExtension(object):
 
     def pcn_criterion_6(self):
         """
-        Returns a PCN element, if Criterion 6 applies.
+        Returns smallest PCN polynom, if Criterion 6 applies.
 
         NOTE: Factorization of q^n-1 required.
 
         Criterion 6:
-        Give explicit PCN element
+        Give explicit PCN polynom, i.e. the lexicographic smallest polynom in F[x] of degree n, with pcn root.
         """
-        return self.pcn_element()
+        return self.pcn_polynom()

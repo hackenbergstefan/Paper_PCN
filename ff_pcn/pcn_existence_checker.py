@@ -242,7 +242,7 @@ class CriterionChecker(object):
         ff = FiniteFieldExtension(p, e, n)
         crits = [
             ff.pcn_criterion_1(),
-G           ff.pcn_criterion_2(),
+            ff.pcn_criterion_2(),
             ff.pcn_criterion_3(),
         ]
         if not any(crits):
@@ -258,7 +258,7 @@ G           ff.pcn_criterion_2(),
             ]
         if not any(crits) and None not in crits:
             crits += [
-                # ff.pcn_criterion_6(),
+                ff.pcn_criterion_6(),
             ]
         logging.info('check_criterions %s: %s', (p, e, n), crits)
         if not any(crits):

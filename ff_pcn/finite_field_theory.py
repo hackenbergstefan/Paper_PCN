@@ -11,18 +11,21 @@ import logging
 import itertools
 from sage.all import (
     DiGraph,
+    GF,
+    Hom,
     Integer,
+    PolynomialRing,
     divisors,
+    e as euler_const,
     euler_gamma,
     euler_phi,
-    e as euler_const,
     factor,
     is_prime,
     log,
     moebius,
     prime_divisors,
-    prod,
     primes,
+    prod,
     uniq,
 )
 from ff_pcn.basic_number_theory import largest_divisor, ordn, squarefree, p_free_part, regular
@@ -136,6 +139,18 @@ def primitive_element(E, facs):
             return y
 
 
+def is_primitive(y, facs):
+    """
+    Returns True if y is primitve.
+    """
+    E = y.parent()
+    qn = E.order() - 1
+    cofacs = [qn//p for p, mul in facs]
+    if all((y**co) != 1 for co in cofacs):
+        return True
+    return False
+
+
 def u_qn(p, e, n):
     """
     Returns U_(p**e,n). Proposition 4.4.
@@ -199,3 +214,46 @@ def pens_to_check(n):
                 continue
             tocheck += [(p, e, n)]
     return tocheck
+
+
+def _normal(q, d, y, cofactors):
+    """
+    Returns True if y in E is normal over G = GF(q^d).
+
+    Theorem: y is normal over G iff:
+    f(sigma^d)(y) != 0
+    for all f cofactors of x^(n/d) - 1 over G
+    with sigma: x -> x^q.
+    """
+    yd = y**(q*d)
+
+    # Test if frobenius vanishes on cofactors
+    for cofac in cofactors[d]:
+        logging.getLogger(__name__).debug('normal: test cofac: %s', cofac)
+        if cofac(yd) == 0:
+            return False
+    return True
+
+
+def completely_normal(p, e, n, y):
+    """
+    Returns True if polynomial f is completely normal.
+    """
+    q = p**e
+    essential_divs = essential_divisors(p, e, n)
+    E = y.parent()
+    F = [fld for fld in E.subfields() if fld[0].order() == q][0][0]
+    cofactors = {}
+    for d in essential_divs:
+        G = F.extension(d)
+        Gx = PolynomialRing(G, 'x')
+        h = Hom(G, E)[0]
+        basepol = Gx.gen()**(n//d)-1
+        cofacs = [basepol.quo_rem(f)[0] for f, mul in list(basepol.factor())]
+        cofacs = [f.map_coefficients(h) for f in cofacs]
+        cofactors[d] = cofacs
+        del h
+        del Gx
+        del G
+
+    return all(_normal(q, d, y, cofactors) for d in essential_divs)
