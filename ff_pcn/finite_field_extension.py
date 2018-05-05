@@ -77,72 +77,22 @@ class FiniteFieldExtension(object):
         """
         Returns lexicographic smallest polynom in F[x] of degree n with pcn root.
         """
+        def polynom_candidates(fx, deg):
+            return (
+                fx.gen()**deg + a * fx.gen()**(deg-1) + f
+                for a, f in
+                itertools.product(fx.base_ring(), fx.polynomials(max_degree=deg - 2))
+                if a != 0
+            )
         fx = PolynomialRing(GF(self.p, 'a'), 'x')
-        for f in fx.polynomials(self.e*self.n):
+        logging.getLogger(__name__).debug('pcn_polynom')
+        for f in polynom_candidates(fx, self.e*self.n):
             if not f.is_irreducible():
                 continue
+            logging.getLogger(__name__).debug('pcn_polynom: test f = %s', f)
             y = GF(self.q**self.n, name='a', modulus=f).gen()
             if is_primitive(y, self.factorization) and completely_normal(self.p, self.e, self.n, y):
                 return f
-
-    def _setup_pcn_search(self, E=None):
-        """
-        Setup caches for completely normal tests.
-        """
-        q = self.q
-        p = self.p
-        e = self.e
-        n = self.n
-        self.essential_divs = essential_divisors(p, e, n)
-        self.F = GF(q, 'a')
-        self.E = E or self.F.extension(n, 'a')
-        self.cofactors = dict()
-        for d in self.essential_divs:
-            G = self.F.extension(d)
-            Gx = PolynomialRing(G, 'x')
-            h = Hom(G, self.E)[0]
-            basepol = Gx.gen()**(n//d)-1
-            cofactors = [basepol.quo_rem(f)[0] for f, mul in list(basepol.factor())]
-            cofactors = [f.map_coefficients(h) for f in cofactors]
-            self.cofactors[d] = cofactors
-            del h
-            del Gx
-            del G
-
-    def completely_normal(self, y):
-        """
-        Returns True if y in GF(q**n) is completely normal over GF(q)
-        """
-        if not hasattr(self, 'essential_divs'):
-            self._setup_pcn_search()
-
-        if y in [0, 1]:
-            return False
-
-        return all(self.normal(y, d) for d in self.essential_divs)
-
-    def normal(self, y, d):
-        """
-        Returns True if y in E is normal over G = GF(q^d).
-
-        Theorem: y is normal over G iff:
-        f(sigma^d)(y) != 0
-        for all f cofactors of x^(n/d) - 1 over G
-        with sigma: x -> x^q.
-        """
-        logging.getLogger(__name__).debug('normal: test y: %s over extension %s over F', y, d)
-
-        if not hasattr(self, 'cofactors'):
-            self._setup_pcn_search()
-
-        yd = y**(self.q*d)
-
-        # Test if frobenius vanishes on cofactors
-        for cofac in self.cofactors[d]:
-            logging.getLogger(__name__).debug('normal: test cofac: %s', cofac)
-            if cofac(yd) == 0:
-                return False
-        return True
 
     def omega_d(self, d):
         """
