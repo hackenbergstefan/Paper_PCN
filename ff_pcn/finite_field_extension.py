@@ -49,7 +49,6 @@ class FiniteFieldExtension(object):
         self.n = Integer(n)
         self.q = self.p**self.e
         self.qn = self.q**self.n
-        self._cache_cofactors = dict()
 
     def pcn_element(self):
         """
@@ -78,20 +77,18 @@ class FiniteFieldExtension(object):
         Returns lexicographic smallest polynom in F[x] of degree n with pcn root.
         """
         def polynom_candidates(fx, deg):
-            return (
-                fx.gen()**deg + a * fx.gen()**(deg-1) + f
-                for a, f in
-                itertools.product(fx.base_ring(), fx.polynomials(max_degree=deg - 2))
-                if a != 0
-            )
+            for f in fx.polynomials(max_degree=deg-2):
+                for a in fx.base_ring():
+                    if a != 0:
+                        yield fx.gen()**deg + a * fx.gen()**(deg-1) + f
         fx = PolynomialRing(GF(self.p, 'a'), 'x')
         logging.getLogger(__name__).debug('pcn_polynom')
         for f in polynom_candidates(fx, self.e*self.n):
+            logging.getLogger(__name__).debug('pcn_polynom: test f = %s', f)
             if not f.is_irreducible():
                 continue
-            logging.getLogger(__name__).debug('pcn_polynom: test f = %s', f)
             y = GF(self.q**self.n, name='a', modulus=f).gen()
-            if is_primitive(y, self.factorization) and completely_normal(self.p, self.e, self.n, y):
+            if is_primitive(y, self.factorization) and completely_normal(self.p, self.e, self.n, f):
                 return f
 
     def omega_d(self, d):
