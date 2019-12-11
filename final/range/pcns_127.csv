@@ -1,4 +1,4 @@
-p,r,n,poly,factorization
+p,e,n,poly,factorization
 127,1,2,x^2 + x + 3,2^8 * 3^2 * 7
 127,1,3,x^3 + x^2 + 15,2 * 3^3 * 7 * 5419
 127,1,4,x^4 + x^3 + 3,2^9 * 3^2 * 5 * 7 * 1613

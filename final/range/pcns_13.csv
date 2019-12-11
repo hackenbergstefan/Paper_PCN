@@ -1,4 +1,4 @@
-p,r,n,poly,factorization
+p,e,n,poly,factorization
 13,1,2,x^2 + x + 2,2^3 * 3 * 7
 13,1,3,x^3 + x^2 + 2,2^2 * 3^2 * 61
 13,1,4,x^4 + x^3 + x + 2,2^4 * 3 * 5 * 7 * 17
